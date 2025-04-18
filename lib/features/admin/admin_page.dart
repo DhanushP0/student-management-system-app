@@ -21,10 +21,6 @@ class _AdminPageState extends State<AdminPage> {
   final _profileKey = GlobalKey();
   String? _errorMessage;
 
-  // Role IDs
-  static const String studentRoleId = '1392a59a-1ddc-4bf5-a5a2-20e7a177ad7c';
-  static const String teacherRoleId = '42ba7a8b-51ba-4ea4-87f9-d807a05af783';
-
   @override
   void initState() {
     super.initState();
@@ -52,14 +48,12 @@ class _AdminPageState extends State<AdminPage> {
           .eq('role_id', '42ba7a8b-51ba-4ea4-87f9-d807a05af783');
       _teacherCount = teacherRes.count ?? 0;
 
-      // Get class count (unique classes from student profiles)
       final classRes = await Supabase.instance.client
-          .from('teachers')
-          .select('class')
-          .eq('role_id', '42ba7a8b-51ba-4ea4-87f9-d807a05af783')
-          .not('class', 'is', null);
-      _classCount =
-          classRes.map((teachers) => teachers['class'] as String).toSet().length;
+          .from('classes')
+          .select('name')
+          .not('name', 'is', null);
+
+      _classCount = classRes.map((row) => row['name'] as String).toSet().length;
 
       // Get assignment count
       final assignmentsRes = await Supabase.instance.client
@@ -602,7 +596,7 @@ class _AdminPageState extends State<AdminPage> {
                                       const Text(
                                         "Admin Dashboard",
                                         style: TextStyle(
-                                          fontSize: 32,
+                                          fontSize: 30,
                                           fontWeight: FontWeight.bold,
                                           color: Color(0xFF1E1E1E),
                                           letterSpacing: -0.5,
@@ -624,7 +618,11 @@ class _AdminPageState extends State<AdminPage> {
                                     onTap: _showProfileMenu,
                                     child: Container(
                                       width: 50,
-                                      height: 50,
+                                      height: 60,
+                                      margin: const EdgeInsets.only(
+                                        top: 0,
+                                        right: 0,
+                                      ),
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: CupertinoColors.systemBlue
@@ -809,15 +807,24 @@ class _AdminPageState extends State<AdminPage> {
                                 description:
                                     'Track and manage assignments, submissions, and grading',
                               ),
-                              // const SizedBox(height: 16),
-                              // _buildNavigationButton(
-                              //   title: 'Reports',
-                              //   icon: CupertinoIcons.chart_bar_alt_fill,
-                              //   color: const Color(0xFF5856D6),
-                              //   onTap: () => context.push('/admin/reports'),
-                              //   description:
-                              //       'Generate and view academic performance and attendance reports',
-                              // ),
+                              const SizedBox(height: 16),
+                              _buildNavigationButton(
+                                title: 'Subjects',
+                                icon: CupertinoIcons.book,
+                                color: const Color(0xFF5856D6),
+                                onTap: () => context.push('/admin/subjects'),
+                                description:
+                                    'Manage subjects and their details',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildNavigationButton(
+                                title: 'Schedule',
+                                icon: CupertinoIcons.calendar,
+                                color: const Color(0xFF00C7BE),
+                                onTap: () => context.push('/admin/schedule'),
+                                description:
+                                    'Manage class timetables, room assignments, and teacher schedules',
+                              ),
                               const SizedBox(height: 32),
                             ],
                           ),
@@ -872,6 +879,13 @@ class _AdminPageState extends State<AdminPage> {
                   context.push('/admin/assignments/add');
                 },
                 child: const Text('Create New Assignment'),
+              ),
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/admin/schedule/add');
+                },
+                child: const Text('Add New Schedule'),
               ),
             ],
             cancelButton: CupertinoActionSheetAction(

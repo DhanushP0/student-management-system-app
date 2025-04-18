@@ -19,17 +19,26 @@ class _AddAssignmentPageState extends State<AddAssignmentPage> {
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   String? _selectedTeacherId;
   String? _selectedClassName;
+  String? _selectedDepartmentId;
   bool _isLoading = false;
   String? _error;
 
+  List<Map<String, dynamic>> _departments = [];
   List<Map<String, dynamic>> _teachers = [];
   List<Map<String, dynamic>> _classes = [];
 
   @override
   void initState() {
     super.initState();
-    _loadTeachers();
-    _loadClasses();
+    _loadDepartments().then((_) {
+      if (_departments.isNotEmpty) {
+        setState(() {
+          _selectedDepartmentId = _departments.first['id'];
+        });
+        _loadTeachers(_selectedDepartmentId!);
+        _loadClasses(_selectedDepartmentId!);
+      }
+    });
   }
 
   @override
@@ -39,15 +48,12 @@ class _AddAssignmentPageState extends State<AddAssignmentPage> {
     super.dispose();
   }
 
-  Future<void> _loadTeachers() async {
+  Future<void> _loadTeachers(String departmentId) async {
     try {
       final response = await Supabase.instance.client
           .from('teachers')
-          .select('id, full_name')
-          .eq(
-            'role_id',
-            '42ba7a8b-51ba-4ea4-87f9-d807a05af783',
-          ); // Teacher role ID
+          .select('id, full_name, department_id')
+          .eq('department_id', departmentId);
 
       setState(() {
         _teachers =
@@ -60,57 +66,37 @@ class _AddAssignmentPageState extends State<AddAssignmentPage> {
     }
   }
 
-  Future<void> _loadClasses() async {
+  Future<void> _loadClasses(String departmentId) async {
     try {
       final response = await Supabase.instance.client
-          .from('students')
-          .select('class, department_id')
-          .eq(
-            'role_id',
-            '1392a59a-1ddc-4bf5-a5a2-20e7a177ad7c',
-          ) // Student role ID
-          .not('class', 'is', null);
+          .from('classes')
+          .select('id, name, department_id')
+          .eq('department_id', departmentId);
 
-      // Get unique classes
-      final uniqueClasses =
-          (response as List)
-              .map((teachers) => teachers['class'] as String)
-              .toSet()
-              .toList();
-
-      // Get department names
-      final departmentIds =
-          (response)
-              .map((teachers) => teachers['department_id'] as String)
-              .toSet()
-              .toList();
-      final departmentsRes = await Supabase.instance.client
-          .from('departments')
-          .select('id, name')
-          .in_('id', departmentIds);
-
-      final departmentMap = {
-        for (var dept in departmentsRes)
-          dept['id'] as String: dept['name'] as String,
-      };
-
-      // Create class list with department names
       final classes =
-          uniqueClasses.map((className) {
-            final teachers = (response).firstWhere(
-              (p) => p['class'] == className,
-            );
-            final departmentId = teachers['department_id'] as String;
-            return {
-              'id': className,
-              'name': className,
-              'department_name':
-                  departmentMap[departmentId] ?? 'Unknown Department',
-            };
-          }).toList();
+          (response as List)
+              .map((item) => {'id': item['id'], 'name': item['name']})
+              .toList();
 
       setState(() {
         _classes = classes;
+      });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _loadDepartments() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('departments')
+          .select('id, name');
+
+      setState(() {
+        _departments =
+            (response as List)
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -139,7 +125,7 @@ class _AddAssignmentPageState extends State<AddAssignmentPage> {
         'description': _descriptionController.text.trim(),
         'due_date': _dueDate.toIso8601String(),
         'teacher_id': _selectedTeacherId,
-        'class': _selectedClassName,
+        'class_id': _selectedClassName,
       });
 
       if (mounted) {
@@ -397,9 +383,9 @@ class _AddAssignmentPageState extends State<AddAssignmentPage> {
                                 ? items.firstWhere(
                                   (item) => item[valueField] == selected,
                                   orElse:
-                                      () => <String, String>{
+                                      () => {
                                         displayField: placeholder,
-                                      },
+                                      }, // Fallback
                                 )[displayField]
                                 : placeholder,
                             style: TextStyle(
@@ -535,6 +521,26 @@ class _AddAssignmentPageState extends State<AddAssignmentPage> {
                         isRequired: false,
                       ),
                       _buildDatePicker(),
+                      _buildAppleStyleDropdown(
+                        label: "Department",
+                        icon: CupertinoIcons.building_2_fill,
+                        selected: _selectedDepartmentId,
+                        items: _departments,
+                        displayField: 'name',
+                        valueField: 'id',
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDepartmentId = value;
+                            _selectedTeacherId = null;
+                            _selectedClassName = null;
+                          });
+                          if (value != null) {
+                            _loadTeachers(value);
+                            _loadClasses(value);
+                          }
+                        },
+                        placeholder: 'Select a department',
+                      ),
                       _buildAppleStyleDropdown(
                         label: "Teacher",
                         icon: CupertinoIcons.person,

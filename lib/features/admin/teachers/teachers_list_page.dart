@@ -41,14 +41,14 @@ class _TeachersListPageState extends State<TeachersListPage> {
         _filteredTeachers = List.from(_teachers);
         _isFiltered = false;
       } else {
-        _filteredTeachers = _teachers.where((teacher) {
-          final name = teacher['full_name']?.toString().toLowerCase() ?? '';
-          final email = teacher['email']?.toString().toLowerCase() ?? '';
-          final searchQuery = query.toLowerCase();
+        _filteredTeachers =
+            _teachers.where((teacher) {
+              final name = teacher['full_name']?.toString().toLowerCase() ?? '';
+              final email = teacher['email']?.toString().toLowerCase() ?? '';
+              final searchQuery = query.toLowerCase();
 
-          return name.contains(searchQuery) ||
-              email.contains(searchQuery);
-        }).toList();
+              return name.contains(searchQuery) || email.contains(searchQuery);
+            }).toList();
         _isFiltered = true;
       }
     });
@@ -64,16 +64,25 @@ class _TeachersListPageState extends State<TeachersListPage> {
     });
   }
 
+  Widget _buildDialogAction({
+    required Widget child,
+    required VoidCallback onPressed,
+    bool isDestructiveAction = false,
+  }) {
+    return CupertinoDialogAction(
+      child: child,
+      onPressed: onPressed,
+      isDestructiveAction: isDestructiveAction,
+    );
+  }
+
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.5),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -91,9 +100,15 @@ class _TeachersListPageState extends State<TeachersListPage> {
               autofocus: true,
               decoration: const InputDecoration(
                 hintText: 'Search by name or email...',
-                prefixIcon: Icon(CupertinoIcons.search, color: CupertinoColors.systemGrey),
+                prefixIcon: Icon(
+                  CupertinoIcons.search,
+                  color: CupertinoColors.systemGrey,
+                ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -124,7 +139,16 @@ class _TeachersListPageState extends State<TeachersListPage> {
 
       final response = await Supabase.instance.client
           .from('teachers')
-          .select()
+          .select('''
+          id,
+          full_name,
+          email,
+          phone_number,
+          class_id,
+          department_id,
+          departments ( name ),
+          classes!inner(id, name)
+        ''')
           .eq('role_id', teacherRoleId)
           .order('full_name');
 
@@ -147,9 +171,9 @@ class _TeachersListPageState extends State<TeachersListPage> {
           .from('teachers')
           .delete()
           .eq('id', teacherId);
-      
+
       await _loadTeachers(); // Reload the list
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Teacher deleted successfully')),
@@ -157,9 +181,9 @@ class _TeachersListPageState extends State<TeachersListPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error deleting teacher: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error deleting teacher: $e')));
       }
     }
   }
@@ -223,6 +247,21 @@ class _TeachersListPageState extends State<TeachersListPage> {
                           color: Color(0xFF8E8E93),
                         ),
                       ),
+                      Text(
+                        'Department: ${teacher['departments']?['name'] ?? 'Not Assigned'}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8E8E93),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'class: ${teacher['classes']?['name'] ?? 'Not Assigned'}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8E8E93),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -230,7 +269,10 @@ class _TeachersListPageState extends State<TeachersListPage> {
                   children: [
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      onPressed: () => context.push('/admin/teachers/edit/${teacher['id']}'),
+                      onPressed:
+                          () => context.push(
+                            '/admin/teachers/edit/${teacher['id']}',
+                          ),
                       child: const Icon(
                         CupertinoIcons.pencil,
                         color: CupertinoColors.systemBlue,
@@ -239,27 +281,31 @@ class _TeachersListPageState extends State<TeachersListPage> {
                     ),
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      onPressed: () => showCupertinoDialog(
-                        context: context,
-                        builder: (context) => CupertinoAlertDialog(
-                          title: const Text('Delete Teacher'),
-                          content: const Text('Are you sure you want to delete this teacher?'),
-                          actions: [
-                            CupertinoDialogAction(
-                              child: const Text('Cancel'),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                            CupertinoDialogAction(
-                              isDestructiveAction: true,
-                              child: const Text('Delete'),
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _deleteTeacher(teacher['id']);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                      onPressed:
+                          () => showCupertinoDialog(
+                            context: context,
+                            builder:
+                                (context) => CupertinoAlertDialog(
+                                  title: const Text('Delete Teacher'),
+                                  content: const Text(
+                                    'Are you sure you want to delete this teacher?',
+                                  ),
+                                  actions: [
+                                    _buildDialogAction(
+                                      child: const Text('Cancel'),
+                                      onPressed: () => Navigator.pop(context),
+                                    ),
+                                    _buildDialogAction(
+                                      isDestructiveAction: true,
+                                      child: const Text('Delete'),
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        _deleteTeacher(teacher['id']);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                          ),
                       child: const Icon(
                         CupertinoIcons.trash,
                         color: CupertinoColors.systemRed,
@@ -316,6 +362,7 @@ class _TeachersListPageState extends State<TeachersListPage> {
             ),
           ),
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Padding(
@@ -323,59 +370,14 @@ class _TeachersListPageState extends State<TeachersListPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () => context.go('/admin'),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.back,
-                            color: CupertinoColors.systemBlue,
-                            size: 20,
-                          ),
+                      const Text(
+                        "Teachers",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E1E1E),
+                          letterSpacing: -0.5,
                         ),
-                      ),
-                      Row(
-                        children: [
-                          const Text(
-                            "Teachers",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E1E1E),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          if (_isFiltered) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.systemGreen.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'Filtered',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: CupertinoColors.systemGreen,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
                       ),
                       Row(
                         children: [
@@ -397,7 +399,10 @@ class _TeachersListPageState extends State<TeachersListPage> {
                               ),
                               child: Icon(
                                 CupertinoIcons.search,
-                                color: _isFiltered ? CupertinoColors.systemGreen : CupertinoColors.systemGrey,
+                                color:
+                                    _isFiltered
+                                        ? CupertinoColors.systemGreen
+                                        : CupertinoColors.systemGrey,
                                 size: 20,
                               ),
                             ),
@@ -433,11 +438,7 @@ class _TeachersListPageState extends State<TeachersListPage> {
                 ),
                 if (_showSearch) _buildSearchBar(),
                 if (_isLoading)
-                  const Expanded(
-                    child: Center(
-                      child: CustomLoader(),
-                    ),
-                  )
+                  const Expanded(child: Center(child: CustomLoader()))
                 else if (_error != null)
                   Expanded(
                     child: Center(
@@ -469,35 +470,40 @@ class _TeachersListPageState extends State<TeachersListPage> {
                   )
                 else
                   Expanded(
-                    child: _filteredTeachers.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  CupertinoIcons.search,
-                                  color: Color(0xFF8E8E93),
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _searchController.text.isEmpty
-                                      ? 'No teachers found'
-                                      : 'No results found for "${_searchController.text}"',
-                                  style: const TextStyle(
+                    child:
+                        _filteredTeachers.isEmpty
+                            ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    CupertinoIcons.search,
                                     color: Color(0xFF8E8E93),
-                                    fontSize: 16,
+                                    size: 48,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchController.text.isEmpty
+                                        ? 'No teachers found'
+                                        : 'No results found for "${_searchController.text}"',
+                                    style: const TextStyle(
+                                      color: Color(0xFF8E8E93),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            : ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              itemCount: _filteredTeachers.length,
+                              itemBuilder:
+                                  (context, index) => _buildTeacherCard(
+                                    _filteredTeachers[index],
+                                  ),
                             ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            itemCount: _filteredTeachers.length,
-                            itemBuilder: (context, index) =>
-                                _buildTeacherCard(_filteredTeachers[index]),
-                          ),
                   ),
               ],
             ),
@@ -506,4 +512,4 @@ class _TeachersListPageState extends State<TeachersListPage> {
       ),
     );
   }
-} 
+}

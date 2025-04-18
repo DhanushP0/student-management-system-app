@@ -3,72 +3,83 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:student_management_app/core/widgets/custom_loader.dart';
 
-class EditClassPage extends StatefulWidget {
-  final String className;
+class AssignSubjectPage extends StatefulWidget {
+  final String subjectId;
 
-  const EditClassPage({super.key, required this.className});
+  const AssignSubjectPage({super.key, required this.subjectId});
 
   @override
-  State<EditClassPage> createState() => _EditClassPageState();
+  State<AssignSubjectPage> createState() => _AssignSubjectPageState();
 }
 
-class _EditClassPageState extends State<EditClassPage> {
+class _AssignSubjectPageState extends State<AssignSubjectPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  String? _selectedDepartmentId;
-  List<Map<String, dynamic>> _departments = [];
-  bool _isLoading = false;
+  String? _selectedTeacherId;
+  String? _selectedYearId;
+  String? _selectedClassId;
+  List<Map<String, dynamic>> _teachers = [];
+  List<Map<String, dynamic>> _years = [];
+  List<Map<String, dynamic>> _classes = [];
   String? _error;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController.text = widget.className;
-    _loadDepartments();
-    _loadClassDetails();
+    _loadTeachers();
+    _loadYears();
+    _loadClasses();
   }
 
-  Future<void> _loadDepartments() async {
+  Future<void> _loadTeachers() async {
     try {
       final response = await Supabase.instance.client
-          .from('departments')
-          .select('id, name')
-          .order('name');
+          .from('teachers')
+          .select('id, full_name')
+          .order('full_name');
+
       setState(() {
-        _departments = List<Map<String, dynamic>>.from(response);
+        _teachers = List<Map<String, dynamic>>.from(response);
       });
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load departments: $e';
-      });
+      setState(() => _error = e.toString());
     }
   }
 
-  Future<void> _loadClassDetails() async {
+  Future<void> _loadYears() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('years')
+          .select('id, year')
+          .order('year');
+
+      setState(() {
+        _years = List<Map<String, dynamic>>.from(response);
+      });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _loadClasses() async {
     try {
       final response = await Supabase.instance.client
           .from('classes')
-          .select('department_id')
-          .eq('name', widget.className)
-          .limit(1);
+          .select('id, name')
+          .order('name');
 
-      if (response.isNotEmpty) {
-        setState(() {
-          _selectedDepartmentId = response[0]['department_id'].toString();
-        });
-      }
-    } catch (e) {
       setState(() {
-        _error = 'Failed to load class details: $e';
+        _classes = List<Map<String, dynamic>>.from(response);
       });
+    } catch (e) {
+      setState(() => _error = e.toString());
     }
   }
 
-  Future<void> _updateClass() async {
-    if (!_formKey.currentState!.validate() || _selectedDepartmentId == null) {
-      return;
-    }
+  Future<void> _assignSubject() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
@@ -76,49 +87,26 @@ class _EditClassPageState extends State<EditClassPage> {
     });
 
     try {
-      // Check if new class name already exists (if name was changed)
-      if (_nameController.text.trim() != widget.className) {
-        final existingClass =
-            await Supabase.instance.client
-                .from('classes')
-                .select('id')
-                .eq('name', _nameController.text.trim())
-                .maybeSingle();
+      final assignment = {
+        'subject_id': widget.subjectId,
+        'teacher_id': _selectedTeacherId,
+        'year_id': _selectedYearId,
+      };
 
-        if (existingClass != null) {
-          setState(() {
-            _error = 'A class with this name already exists';
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-
-      // Update all students in this class
       await Supabase.instance.client
-          .from('classes')
-          .update({
-            'name': _nameController.text.trim(),
-            'department_id': _selectedDepartmentId,
-          })
-          .eq('name', widget.className);
+          .from('teacher_subject_years')
+          .insert(assignment);
 
       if (mounted) {
-        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Class updated successfully')),
+          const SnackBar(content: Text('✅ Subject assigned successfully')),
         );
+        context.pop();
       }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to update class: $e';
-      });
+      setState(() => _error = e.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() => _isLoading = false);
     }
   }
 
@@ -137,30 +125,6 @@ class _EditClassPageState extends State<EditClassPage> {
               ),
             ),
           ),
-          Positioned(
-            top: -120,
-            right: -80,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.orange.shade300.withOpacity(0.2),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: CupertinoColors.systemIndigo.withOpacity(0.08),
-              ),
-            ),
-          ),
           SafeArea(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -176,7 +140,7 @@ class _EditClassPageState extends State<EditClassPage> {
                         children: [
                           CupertinoButton(
                             padding: EdgeInsets.zero,
-                            onPressed: () => context.go('/admin/classes'),
+                            onPressed: () => context.pop(),
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
@@ -198,7 +162,7 @@ class _EditClassPageState extends State<EditClassPage> {
                             ),
                           ),
                           const Text(
-                            "Edit Class",
+                            "Assign Subject",
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -210,10 +174,110 @@ class _EditClassPageState extends State<EditClassPage> {
                         ],
                       ),
                       const SizedBox(height: 32),
-                      _buildFormFields(),
-                      if (_error != null) _buildErrorMessage(),
-                      const SizedBox(height: 30),
-                      _buildUpdateButton(),
+                      _buildAppleStyleDropdown(
+                        label: "Teacher",
+                        icon: CupertinoIcons.person,
+                        selectedValue: _selectedTeacherId,
+                        items: _teachers,
+                        displayField: 'full_name',
+                        valueField: 'id',
+                        onChanged: (value) {
+                          setState(() => _selectedTeacherId = value);
+                        },
+                        placeholder: 'Select a teacher',
+                      ),
+                      _buildAppleStyleDropdown(
+                        label: "Academic Year",
+                        icon: CupertinoIcons.calendar,
+                        selectedValue: _selectedYearId,
+                        items: _years,
+                        displayField: 'year',
+                        valueField: 'id',
+                        onChanged: (value) {
+                          setState(() => _selectedYearId = value);
+                        },
+                        placeholder: 'Select year',
+                      ),
+                      if (_error != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.systemRed.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: CupertinoColors.systemRed.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                CupertinoIcons.exclamationmark_circle,
+                                color: CupertinoColors.systemRed,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: const TextStyle(
+                                    color: CupertinoColors.systemRed,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: _isLoading ? null : _assignSubject,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0A84FF), Color(0xFF0077E6)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0A84FF).withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child:
+                                _isLoading
+                                    ? const CustomLoader(
+                                      size: 28,
+                                      color: Colors.white,
+                                    )
+                                    : const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.checkmark_circle,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          "Assign Subject",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -222,73 +286,6 @@ class _EditClassPageState extends State<EditClassPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFormFields() {
-    return Column(
-      children: [
-        _buildInputField(
-          controller: _nameController,
-          label: "Class Name",
-          icon: CupertinoIcons.book,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter class name';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        _buildAppleStyleDropdown(
-          label: "Department",
-          icon: CupertinoIcons.building_2_fill,
-          selectedValue: _selectedDepartmentId,
-          items: _departments,
-          displayField: 'name', // Field to display
-          valueField: 'id', // Field to use as value
-          onChanged: (value) {
-            setState(() => _selectedDepartmentId = value);
-          },
-          placeholder: 'Select a department',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    String? Function(String?)? validator,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
-          ),
-          child: TextFormField(
-            controller: controller,
-            style: const TextStyle(color: Colors.black87),
-            decoration: InputDecoration(
-              labelText: label,
-              labelStyle: const TextStyle(color: Color(0xFF8E8E93)),
-              prefixIcon: Icon(icon, color: CupertinoColors.systemGrey),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
-            validator: validator,
-          ),
-        ),
       ),
     );
   }
@@ -348,7 +345,7 @@ class _EditClassPageState extends State<EditClassPage> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      item[displayField],
+                                      item[displayField] ?? placeholder,
                                       style: TextStyle(
                                         color:
                                             isSelected
@@ -404,9 +401,11 @@ class _EditClassPageState extends State<EditClassPage> {
                           Text(
                             selectedValue != null
                                 ? items.firstWhere(
-                                  (item) => item[valueField] == selectedValue,
-                                  orElse: () => {displayField: placeholder},
-                                )[displayField]
+                                      (item) =>
+                                          item[valueField] == selectedValue,
+                                      orElse: () => {displayField: placeholder},
+                                    )[displayField] ??
+                                    placeholder
                                 : placeholder,
                             style: TextStyle(
                               fontSize: 16,
@@ -430,85 +429,6 @@ class _EditClassPageState extends State<EditClassPage> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorMessage() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemRed.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CupertinoColors.systemRed.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            CupertinoIcons.exclamationmark_circle,
-            color: CupertinoColors.systemRed,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _error!,
-              style: const TextStyle(
-                color: CupertinoColors.systemRed,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpdateButton() {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: _isLoading ? null : _updateClass,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0A84FF), Color(0xFF0077E6)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0A84FF).withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Center(
-          child:
-              _isLoading
-                  ? const CupertinoActivityIndicator(color: Colors.white)
-                  : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        CupertinoIcons.checkmark_circle,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        "Update Class",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
         ),
       ),
     );

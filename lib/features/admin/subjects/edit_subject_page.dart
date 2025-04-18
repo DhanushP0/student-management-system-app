@@ -5,118 +5,146 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:student_management_app/core/widgets/custom_loader.dart';
 
-class EditTeacherPage extends StatefulWidget {
-  final String teacherId;
+class EditSubjectPage extends StatefulWidget {
+  final String subjectId;
 
-  const EditTeacherPage({super.key, required this.teacherId});
+  const EditSubjectPage({super.key, required this.subjectId});
 
   @override
-  State<EditTeacherPage> createState() => _EditTeacherPageState();
+  State<EditSubjectPage> createState() => _EditSubjectPageState();
 }
 
-class _EditTeacherPageState extends State<EditTeacherPage> {
+class _EditSubjectPageState extends State<EditSubjectPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  final _subjectNameController = TextEditingController();
+  final _teacherController = TextEditingController();
 
-  bool _isLoading = true;
-  String? _error;
-
+  List<Map<String, dynamic>> _teachers = [];
+  List<Map<String, dynamic>> _years = [];
   List<Map<String, dynamic>> _departments = [];
+  String? _selectedYearId;
   String? _selectedDepartmentId;
-
-  List<Map<String, dynamic>> _classes = [];
-  String? _selectedClassId;
-
-  final List<Map<String, dynamic>> _subjects = [];
-  String? _selectedSubjectId;
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadTeacherDetails();
+    _loadData();
   }
 
-  Future<void> _loadTeacherDetails() async {
+  @override
+  void dispose() {
+    _subjectNameController.dispose();
+    _teacherController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
     try {
-      final teacherResponse =
+      setState(() => _isLoading = true);
+
+      // Load subject data
+      final subjectResponse =
           await Supabase.instance.client
-              .from('teachers')
-              .select()
-              .eq('id', widget.teacherId)
+              .from('subjects')
+              .select('*, departments(name)')
+              .eq('id', widget.subjectId)
               .single();
 
+      // Load teacher_subject_years data
+      final teacherSubjectYearResponse =
+          await Supabase.instance.client
+              .from('teacher_subject_years')
+              .select('*, teachers(full_name), years(year)')
+              .eq('subject_id', widget.subjectId)
+              .single();
+
+      // Load teachers
+      final teachersResponse = await Supabase.instance.client
+          .from('teachers')
+          .select()
+          .order('full_name');
+
+      // Load years
+      final yearsResponse = await Supabase.instance.client
+          .from('years')
+          .select()
+          .order('year');
+      // Load departments
       final departmentsResponse = await Supabase.instance.client
           .from('departments')
-          .select('id, name');
-
-      final classesResponse = await Supabase.instance.client
-          .from('classes')
-          .select('id, name');
+          .select()
+          .order('name');
 
       if (mounted) {
         setState(() {
-          _fullNameController.text = teacherResponse['full_name'] ?? '';
-          _emailController.text = teacherResponse['email'] ?? '';
-          _phoneController.text = teacherResponse['phone_number'] ?? '';
-          _selectedDepartmentId = teacherResponse['department_id'];
-          _selectedClassId = teacherResponse['class_id'];
+          // Set form values
+          _subjectNameController.text = subjectResponse['name'] ?? '';
+          _selectedDepartmentId = subjectResponse['department_id'];
+          _teacherController.text =
+              teacherSubjectYearResponse['teacher_id'] ?? '';
+          _selectedYearId = teacherSubjectYearResponse['year_id'];
           _departments = List<Map<String, dynamic>>.from(departmentsResponse);
-          _classes = List<Map<String, dynamic>>.from(classesResponse);
+
+          // Set teachers and years
+          _teachers = List<Map<String, dynamic>>.from(teachersResponse);
+          _years = List<Map<String, dynamic>>.from(yearsResponse);
+
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Failed to load teacher details: $e';
+          _error = e.toString();
           _isLoading = false;
         });
       }
     }
   }
 
-  @override
-  void dispose() {
-    _fullNameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _updateTeacher() async {
+  Future<void> _updateSubject() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    setState(() => _isSaving = true);
 
     try {
-      final teacherData = {
-        'full_name': _fullNameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phone_number': _phoneController.text.trim(),
-        'department_id': _selectedDepartmentId,
-        'class_id': _selectedClassId, // Include class ID
-      };
-
+      // Update the subject in the subjects table
       await Supabase.instance.client
-          .from('teachers')
-          .update(teacherData)
-          .eq('id', widget.teacherId);
+          .from('subjects')
+          .update({
+            'name': _subjectNameController.text.trim(),
+            'department_id': _selectedDepartmentId,
+          })
+          .eq('id', widget.subjectId);
+
+      // Update the teacher_subject_years table
+      await Supabase.instance.client
+          .from('teacher_subject_years')
+          .update({
+            'teacher_id': _teacherController.text.trim(),
+            'year_id': _selectedYearId,
+          })
+          .eq('subject_id', widget.subjectId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Teacher updated successfully')),
+          const SnackBar(content: Text('✅ Subject updated successfully')),
         );
         context.pop();
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error updating subject: $e')));
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -324,7 +352,7 @@ class _EditTeacherPageState extends State<EditTeacherPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: CupertinoColors.systemGreen.withOpacity(0.1),
+                color: CupertinoColors.systemBlue.withOpacity(0.1),
               ),
             ),
           ),
@@ -341,83 +369,99 @@ class _EditTeacherPageState extends State<EditTeacherPage> {
             ),
           ),
           SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () => context.pop(),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            CupertinoIcons.back,
+                            color: CupertinoColors.systemBlue,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          "Edit Subject",
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E1E1E),
+                            letterSpacing: -0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(width: 44), // Balance the back button
+                    ],
+                  ),
+                ),
+                if (_isLoading)
+                  const Expanded(child: Center(child: CustomLoader()))
+                else if (_error != null)
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          const Icon(
+                            CupertinoIcons.exclamationmark_circle,
+                            color: CupertinoColors.systemRed,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            style: const TextStyle(
+                              color: CupertinoColors.systemRed,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
                           CupertinoButton(
-                            padding: EdgeInsets.zero,
-                            onPressed: () => context.pop(),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                CupertinoIcons.back,
-                                color: CupertinoColors.systemBlue,
-                                size: 20,
-                              ),
-                            ),
+                            onPressed: _loadData,
+                            child: const Text('Retry'),
                           ),
-                          const Text(
-                            "Edit Teacher",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E1E1E),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(width: 40),
                         ],
                       ),
-                      const SizedBox(height: 32),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Form(
+                      key: _formKey,
+                      child: ListView(
+                        padding: const EdgeInsets.all(24),
                         children: [
                           _buildFormField(
-                            controller: _fullNameController,
-                            label: "Full Name",
-                            icon: CupertinoIcons.person,
-                            validator:
-                                (val) =>
-                                    val != null && val.isNotEmpty
-                                        ? null
-                                        : "Please enter a name",
-                          ),
-                          _buildFormField(
-                            controller: _emailController,
-                            label: "Email Address",
-                            icon: CupertinoIcons.mail,
-                            keyboardType: TextInputType.emailAddress,
-                            validator:
-                                (val) =>
-                                    val != null && val.contains('@')
-                                        ? null
-                                        : 'Enter a valid email',
-                          ),
-                          _buildFormField(
-                            controller: _phoneController,
-                            label: "Phone Number",
-                            icon: CupertinoIcons.phone,
-                            keyboardType: TextInputType.phone,
+                            controller: _subjectNameController,
+                            label: 'Subject Name',
+                            icon: CupertinoIcons.book,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a subject name';
+                              }
+                              return null;
+                            },
                           ),
                           _buildAppleStyleDropdown(
                             label: "Department",
@@ -432,113 +476,86 @@ class _EditTeacherPageState extends State<EditTeacherPage> {
                             placeholder: 'Select a department',
                           ),
                           _buildAppleStyleDropdown(
-                            label: "Class",
-                            icon: CupertinoIcons.book,
-                            selectedValue: _selectedClassId,
-                            items: _classes,
-                            displayField: 'name',
+                            label: "Teacher",
+                            icon: CupertinoIcons.person,
+                            selectedValue: _teacherController.text,
+                            items: _teachers,
+                            displayField: 'full_name',
                             valueField: 'id',
                             onChanged: (value) {
-                              setState(() => _selectedClassId = value);
+                              setState(() {
+                                _teacherController.text = value ?? '';
+                              });
                             },
-                            placeholder: 'Select a class',
+                            placeholder: 'Select a teacher',
                           ),
-                          if (_error != null)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.systemRed.withOpacity(
-                                  0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: CupertinoColors.systemRed.withOpacity(
-                                    0.3,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    CupertinoIcons.exclamationmark_circle,
-                                    color: CupertinoColors.systemRed,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _error!,
-                                      style: const TextStyle(
-                                        color: CupertinoColors.systemRed,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                          _buildAppleStyleDropdown(
+                            label: "Academic Year",
+                            icon: CupertinoIcons.calendar,
+                            selectedValue: _selectedYearId,
+                            items: _years,
+                            displayField: 'year',
+                            valueField: 'id',
+                            onChanged: (value) {
+                              setState(() => _selectedYearId = value);
+                            },
+                            placeholder: 'Select academic year',
+                          ),
+                          const SizedBox(height: 24),
                           CupertinoButton(
                             padding: EdgeInsets.zero,
-                            onPressed: _isLoading ? null : _updateTeacher,
+                            onPressed: _isSaving ? null : _updateSubject,
                             child: Container(
                               width: double.infinity,
+                              height: 60,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
-                                    Color(0xFF34C759),
-                                    Color(0xFF2FB750),
+                                    CupertinoColors.systemBlue,
+                                    Color(0xFF2B88D9),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFF34C759,
-                                    ).withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 6),
+                                    color: CupertinoColors.systemBlue
+                                        .withOpacity(0.3),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 8),
+                                    spreadRadius: 2,
                                   ),
                                 ],
                               ),
-                              child: Center(
-                                child:
-                                    _isLoading
-                                        ? const CustomLoader(
-                                          size: 28,
-                                          color: Colors.white,
-                                        )
-                                        : const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              CupertinoIcons.checkmark_circle,
-                                              color: Colors.white,
-                                              size: 18,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              "Update Teacher",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
+                              child:
+                                  _isSaving
+                                      ? const Center(
+                                        child: SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white,
+                                          ),
                                         ),
-                              ),
+                                      )
+                                      : const Text(
+                                        'Update',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 32),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
           ),
         ],

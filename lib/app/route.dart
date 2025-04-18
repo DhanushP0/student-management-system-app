@@ -23,6 +23,13 @@ import '../features/auth/login/reset_password_screen.dart';
 import '../app/app_config.dart';
 import '../features/auth/signup/teacher_signup_screen.dart';
 import '../features/auth/signup/admin_signup_screen.dart';
+import '../features/admin/subjects/add_subject_page.dart';
+import '../features/admin/subjects/edit_subject_page.dart';
+import '../features/admin/subjects/subjects_list_page.dart';
+import '../features/admin/subjects/assign_subject_page.dart';
+import '../features/admin/schedule/schedule_list_page.dart';
+import '../features/admin/schedule/add_schedule_page.dart';
+import '../features/admin/schedule/edit_schedule_page.dart';
 
 // Export the router so it can be imported in main.dart
 export 'app_config.dart' show navigatorKey;
@@ -114,7 +121,44 @@ final GoRouter appRouter = GoRouter(
       path: '/admin/reports',
       builder: (context, state) => const ReportsPage(),
     ),
+    GoRoute(
+      path: '/admin/subjects',
+      builder: (context, state) => const SubjectsListPage(),
+    ),
+    GoRoute(
+      path: '/admin/subjects/add',
+      builder: (context, state) => const AddSubjectPage(),
+    ),
+    GoRoute(
+      path: '/admin/subjects/edit/:id',
+      builder:
+          (context, state) =>
+              EditSubjectPage(subjectId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/admin/subjects/assign/:id',
+      builder:
+          (context, state) =>
+              AssignSubjectPage(subjectId: state.pathParameters['id']!),
+    ),
     GoRoute(path: '/student', builder: (context, state) => const StudentPage()),
-    GoRoute(path: '/teacher', builder: (context, state) => const TeacherPage()),
+    GoRoute(
+      path: '/teacher',
+      builder: (context, state) => const TeacherDashboardPage(),
+    ),
+    GoRoute(
+      path: '/admin/schedule',
+      builder: (context, state) => const ScheduleListPage(),
+    ),
+    GoRoute(
+      path: '/admin/schedule/add',
+      builder: (context, state) => const AddSchedulePage(),
+    ),
+    GoRoute(
+      path: '/admin/schedule/edit/:id',
+      builder:
+          (context, state) =>
+              EditSchedulePage(scheduleId: state.pathParameters['id']!),
+    ),
   ],
 );

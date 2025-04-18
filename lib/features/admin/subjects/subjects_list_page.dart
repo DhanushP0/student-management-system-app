@@ -5,26 +5,29 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:student_management_app/core/widgets/custom_loader.dart';
 
-class ClassesListPage extends StatefulWidget {
-  const ClassesListPage({super.key});
+class SubjectsListPage extends StatefulWidget {
+  const SubjectsListPage({super.key});
 
   @override
-  State<ClassesListPage> createState() => _ClassesListPageState();
+  State<SubjectsListPage> createState() => _SubjectsListPageState();
 }
 
-class _ClassesListPageState extends State<ClassesListPage> {
-  List<Map<String, dynamic>> _classes = [];
-  List<Map<String, dynamic>> _filteredClasses = [];
-  bool _isLoading = false;
+class _SubjectsListPageState extends State<SubjectsListPage> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _subjects = [];
+  List<Map<String, dynamic>> _filteredSubjects = [];
   String? _error;
   final TextEditingController _searchController = TextEditingController();
   bool _isFiltered = false;
   bool _showSearch = false;
 
+  String? _selectedYearFilter;
+  String? _selectedTeacherFilter;
+
   @override
   void initState() {
     super.initState();
-    _loadClasses();
+    _loadSubjects();
   }
 
   @override
@@ -33,25 +36,40 @@ class _ClassesListPageState extends State<ClassesListPage> {
     super.dispose();
   }
 
-  void _filterClasses(String query) {
+  void _filterSubjects() {
     setState(() {
-      if (query.isEmpty) {
-        _filteredClasses = List.from(_classes);
-        _isFiltered = false;
-      } else {
-        _filteredClasses =
-            _classes.where((classItem) {
-              final name = classItem['name']?.toString().toLowerCase() ?? '';
-              final department =
-                  classItem['department']?['name']?.toString().toLowerCase() ??
-                  '';
-              final searchQuery = query.toLowerCase();
+      _filteredSubjects =
+          _subjects.where((subject) {
+            final subjectName = subject['name']?.toString().toLowerCase() ?? '';
+            final departmentName =
+                subject['departments']?['name']?.toString().toLowerCase() ?? '';
+            final year =
+                subject['years']?['year']?.toString().toLowerCase() ?? '';
+            final teacher =
+                subject['teachers']?['full_name']?.toString().toLowerCase() ??
+                '';
 
-              return name.contains(searchQuery) ||
-                  department.contains(searchQuery);
-            }).toList();
-        _isFiltered = true;
-      }
+            final searchText = _searchController.text.toLowerCase();
+
+            final matchesYear =
+                _selectedYearFilter == null ||
+                year == _selectedYearFilter!.toLowerCase();
+            final matchesTeacher =
+                _selectedTeacherFilter == null ||
+                teacher == _selectedTeacherFilter!.toLowerCase();
+            final matchesSearch =
+                searchText.isEmpty ||
+                subjectName.contains(searchText) ||
+                departmentName.contains(searchText) ||
+                teacher.contains(searchText);
+
+            return matchesYear && matchesTeacher && matchesSearch;
+          }).toList();
+
+      _isFiltered =
+          _selectedYearFilter != null ||
+          _selectedTeacherFilter != null ||
+          _searchController.text.isNotEmpty;
     });
   }
 
@@ -60,99 +78,9 @@ class _ClassesListPageState extends State<ClassesListPage> {
       _showSearch = !_showSearch;
       if (!_showSearch) {
         _searchController.clear();
-        _filterClasses('');
+        _filterSubjects();
       }
     });
-  }
-
-  Future<void> _loadClasses() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final response = await Supabase.instance.client
-          .from('classes')
-          .select('name, department:departments(name)')
-          .not('name', 'is', null)
-          .order('name');
-
-      // Group classes by name and combine their departments
-      final Map<String, Set<String>> uniqueClasses = {};
-
-      for (final item in response) {
-        final className = item['name'] as String;
-        final departmentName = (item['department'] as Map)['name'] as String;
-
-        if (!uniqueClasses.containsKey(className)) {
-          uniqueClasses[className] = {departmentName};
-        } else {
-          uniqueClasses[className]!.add(departmentName);
-        }
-      }
-
-      // Convert to list format
-      final List<Map<String, dynamic>> processedClasses =
-          uniqueClasses.entries.map((entry) {
-            return {
-              'class': entry.key,
-              'department': {'name': entry.value.join(', ')},
-            };
-          }).toList();
-
-      // Sort by class name
-      processedClasses.sort(
-        (a, b) => (a['class'] as String).compareTo(b['class'] as String),
-      );
-
-      setState(() {
-        _classes = processedClasses;
-        _filteredClasses = List.from(_classes);
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to load classes: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _deleteClass(String className) async {
-    try {
-      await Supabase.instance.client
-          .from('classes')
-          .update({'name': null})
-          .eq('name', className);
-
-      if (mounted) {
-        _loadClasses();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Class deleted successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('❌ Failed to delete class: $e')));
-      }
-    }
-  }
-
-  Widget _buildDialogAction({
-    required Widget child,
-    required VoidCallback onPressed,
-    bool isDestructiveAction = false,
-  }) {
-    return CupertinoDialogAction(
-      child: child,
-      onPressed: onPressed,
-      isDestructiveAction: isDestructiveAction,
-    );
   }
 
   Widget _buildSearchBar() {
@@ -175,10 +103,12 @@ class _ClassesListPageState extends State<ClassesListPage> {
           Expanded(
             child: TextField(
               controller: _searchController,
-              onChanged: _filterClasses,
+              onChanged: (query) {
+                _filterSubjects();
+              },
               autofocus: true,
               decoration: const InputDecoration(
-                hintText: 'Search by class name or department...',
+                hintText: 'Search by Subject name or Department...',
                 prefixIcon: Icon(
                   CupertinoIcons.search,
                   color: CupertinoColors.systemGrey,
@@ -196,7 +126,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               onPressed: () {
                 _searchController.clear();
-                _filterClasses('');
+                _filterSubjects();
               },
               child: const Icon(
                 CupertinoIcons.clear_circled_solid,
@@ -209,9 +139,38 @@ class _ClassesListPageState extends State<ClassesListPage> {
     );
   }
 
-  Widget _buildClassCard(Map<String, dynamic> classData) {
-    final className = classData['class'] as String;
-    final departmentName = (classData['department'] as Map)['name'] as String;
+  Future<void> _loadSubjects() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Fetch subjects and check assignment
+      final response = await Supabase.instance.client
+          .from('subjects')
+          .select(
+            '*, departments(name), teacher_subject_years(teacher_id), classes(name)',
+          )
+          .order('created_at');
+
+      setState(() {
+        _subjects = List<Map<String, dynamic>>.from(response);
+        _filteredSubjects = List.from(_subjects);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Widget _buildSubjectCard(Map<String, dynamic> subject) {
+    bool isAssigned =
+        subject['teacher_subject_years'] != null &&
+        subject['teacher_subject_years'].isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -245,41 +204,110 @@ class _ClassesListPageState extends State<ClassesListPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
-                    CupertinoIcons.book_fill,
+                    CupertinoIcons.book,
                     color: CupertinoColors.systemBlue,
                     size: 24,
                   ),
                 ),
                 const SizedBox(width: 16),
+                // Wrap text in an Expanded or Flexible widget to prevent overflow
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        className,
+                        subject['name'] ?? 'No Subject',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF1E1E1E),
                         ),
+                        overflow:
+                            TextOverflow.ellipsis, // Add overflow handling
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        departmentName,
+                        'Department: ${subject['departments']?['name'] ?? 'Not Assigned'}',
                         style: const TextStyle(
                           fontSize: 14,
                           color: Color(0xFF8E8E93),
                         ),
+                        overflow:
+                            TextOverflow.ellipsis, // Add overflow handling
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Class: ${subject['classes']?['name'] ?? 'Not Assigned'}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8E8E93),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      // Display Assigned/Unassigned icon
+                      Row(
+                        children: [
+                          Icon(
+                            isAssigned
+                                ? CupertinoIcons.check_mark_circled
+                                : CupertinoIcons.xmark_circle,
+                            color:
+                                isAssigned
+                                    ? CupertinoColors.systemGreen
+                                    : CupertinoColors.systemRed,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            // Wrap the text inside an Expanded widget
+                            child: Text(
+                              isAssigned ? 'Assigned' : 'Unassigned',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color:
+                                    isAssigned
+                                        ? CupertinoColors.systemGreen
+                                        : CupertinoColors.systemRed,
+                              ),
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis, // Handle overflow gracefully
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+                // Wrap the buttons in a Row to prevent overflow
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (!isAssigned)
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () async {
+                          await context.push(
+                            '/admin/subjects/assign/${subject['id']}',
+                          );
+                          _loadSubjects(); // Refresh after returning
+                        },
+                        child: const Icon(
+                          CupertinoIcons.person_add,
+                          color: CupertinoColors.systemBlue,
+                          size: 20,
+                        ),
+                      ),
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      onPressed:
-                          () => context.push('/admin/classes/edit/$className'),
+                      onPressed: () async {
+                        await context.push(
+                          '/admin/subjects/edit/${subject['id']}',
+                        );
+                        _loadSubjects(); // Refresh after returning
+                      },
                       child: const Icon(
                         CupertinoIcons.pencil,
                         color: CupertinoColors.systemBlue,
@@ -288,31 +316,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
                     ),
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      onPressed:
-                          () => showCupertinoDialog(
-                            context: context,
-                            builder:
-                                (context) => CupertinoAlertDialog(
-                                  title: const Text('Delete Class'),
-                                  content: Text(
-                                    'Are you sure you want to delete $className? This action cannot be undone.',
-                                  ),
-                                  actions: [
-                                    _buildDialogAction(
-                                      child: const Text('Cancel'),
-                                      onPressed: () => Navigator.pop(context),
-                                    ),
-                                    _buildDialogAction(
-                                      isDestructiveAction: true,
-                                      child: const Text('Delete'),
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        _deleteClass(className);
-                                      },
-                                    ),
-                                  ],
-                                ),
-                          ),
+                      onPressed: () => _confirmDeleteSubject(subject['id']),
                       child: const Icon(
                         CupertinoIcons.trash,
                         color: CupertinoColors.systemRed,
@@ -326,6 +330,56 @@ class _ClassesListPageState extends State<ClassesListPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _deleteSubject(String subjectId) async {
+    try {
+      await Supabase.instance.client
+          .from('subjects')
+          .delete()
+          .eq('id', subjectId);
+
+      await _loadSubjects(); // Reload the list
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Subject deleted successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error deleting subject: $e')));
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteSubject(String subjectId) async {
+    showCupertinoDialog(
+      context: context,
+      builder:
+          (context) => CupertinoAlertDialog(
+            title: const Text('Delete Subject'),
+            content: const Text(
+              'Are you sure you want to delete this subject?',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                child: const Text('Delete'),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _deleteSubject(subjectId);
+                },
+              ),
+            ],
+          ),
     );
   }
 
@@ -352,7 +406,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.orange.shade300.withOpacity(0.2),
+                color: const Color(0xFF5856D6).withOpacity(0.20),
               ),
             ),
           ),
@@ -364,7 +418,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: CupertinoColors.systemIndigo.withOpacity(0.08),
+                color: const Color(0xFF5856D6).withOpacity(0.08),
               ),
             ),
           ),
@@ -378,7 +432,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "Classes",
+                        "Subjects",
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -417,7 +471,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
                           const SizedBox(width: 8),
                           CupertinoButton(
                             padding: EdgeInsets.zero,
-                            onPressed: () => context.go('/admin/classes/add'),
+                            onPressed: () => context.go('/admin/subjects/add'),
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
@@ -433,7 +487,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
                               ),
                               child: const Icon(
                                 CupertinoIcons.add,
-                                color: CupertinoColors.systemBlue,
+                                color: Color(0xFF5856D6),
                                 size: 20,
                               ),
                             ),
@@ -468,7 +522,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
                           ),
                           const SizedBox(height: 16),
                           CupertinoButton(
-                            onPressed: _loadClasses,
+                            onPressed: _loadSubjects,
                             child: const Text('Retry'),
                           ),
                         ],
@@ -478,7 +532,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
                 else
                   Expanded(
                     child:
-                        _filteredClasses.isEmpty
+                        _filteredSubjects.isEmpty
                             ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -491,7 +545,7 @@ class _ClassesListPageState extends State<ClassesListPage> {
                                   const SizedBox(height: 16),
                                   Text(
                                     _searchController.text.isEmpty
-                                        ? 'No classes found'
+                                        ? 'No subjects found'
                                         : 'No results found for "${_searchController.text}"',
                                     style: const TextStyle(
                                       color: Color(0xFF8E8E93),
@@ -505,10 +559,11 @@ class _ClassesListPageState extends State<ClassesListPage> {
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
                               ),
-                              itemCount: _filteredClasses.length,
+                              itemCount: _filteredSubjects.length,
                               itemBuilder:
-                                  (context, index) =>
-                                      _buildClassCard(_filteredClasses[index]),
+                                  (context, index) => _buildSubjectCard(
+                                    _filteredSubjects[index],
+                                  ),
                             ),
                   ),
               ],

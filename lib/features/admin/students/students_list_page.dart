@@ -24,6 +24,9 @@ class _StudentsListPageState extends State<StudentsListPage> {
   // Student role ID constant
   static const String studentRoleId = '1392a59a-1ddc-4bf5-a5a2-20e7a177ad7c';
 
+  String? _selectedClassFilter;
+  String? _selectedDepartmentFilter; // Rename from _selectedEmailFilter
+
   @override
   void initState() {
     super.initState();
@@ -36,24 +39,32 @@ class _StudentsListPageState extends State<StudentsListPage> {
     super.dispose();
   }
 
-  void _filterStudents(String query) {
+  void _filterStudents() {
     setState(() {
-      if (query.isEmpty) {
-        _filteredStudents = List.from(_students);
-        _isFiltered = false;
-      } else {
-        _filteredStudents = _students.where((student) {
-          final name = student['full_name']?.toString().toLowerCase() ?? '';
-          final email = student['email']?.toString().toLowerCase() ?? '';
-          final department = student['departments']?['name']?.toString().toLowerCase() ?? '';
-          final searchQuery = query.toLowerCase();
+      _filteredStudents =
+          _students.where((student) {
+            final className =
+                student['classes']?['name']?.toString().toLowerCase() ?? '';
+            final department =
+                student['departments']?['name']?.toString().toLowerCase() ?? '';
 
-          return name.contains(searchQuery) ||
-              email.contains(searchQuery) ||
-              department.contains(searchQuery);
-        }).toList();
-        _isFiltered = true;
-      }
+            final matchesClass =
+                _selectedClassFilter == null ||
+                className == _selectedClassFilter!.toLowerCase();
+            final matchesDepartment =
+                _selectedDepartmentFilter == null ||
+                department == _selectedDepartmentFilter!.toLowerCase();
+            final matchesSearch =
+                _searchController.text.isEmpty ||
+                department.contains(_searchController.text.toLowerCase());
+
+            return matchesClass && matchesDepartment && matchesSearch;
+          }).toList();
+
+      _isFiltered =
+          _selectedClassFilter != null ||
+          _selectedDepartmentFilter != null ||
+          _searchController.text.isNotEmpty;
     });
   }
 
@@ -62,9 +73,21 @@ class _StudentsListPageState extends State<StudentsListPage> {
       _showSearch = !_showSearch;
       if (!_showSearch) {
         _searchController.clear();
-        _filterStudents('');
+        _filterStudents();
       }
     });
+  }
+
+  Widget _buildDialogAction({
+    required Widget child,
+    required VoidCallback onPressed,
+    bool isDestructiveAction = false,
+  }) {
+    return CupertinoDialogAction(
+      child: child,
+      onPressed: onPressed,
+      isDestructiveAction: isDestructiveAction,
+    );
   }
 
   Widget _buildSearchBar() {
@@ -73,10 +96,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.5),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -90,13 +110,21 @@ class _StudentsListPageState extends State<StudentsListPage> {
           Expanded(
             child: TextField(
               controller: _searchController,
-              onChanged: _filterStudents,
+              onChanged: (query) {
+                _filterStudents();
+              },
               autofocus: true,
               decoration: const InputDecoration(
                 hintText: 'Search by name, email, or department...',
-                prefixIcon: Icon(CupertinoIcons.search, color: CupertinoColors.systemGrey),
+                prefixIcon: Icon(
+                  CupertinoIcons.search,
+                  color: CupertinoColors.systemGrey,
+                ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -105,7 +133,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               onPressed: () {
                 _searchController.clear();
-                _filterStudents('');
+                _filterStudents();
               },
               child: const Icon(
                 CupertinoIcons.clear_circled_solid,
@@ -113,6 +141,135 @@ class _StudentsListPageState extends State<StudentsListPage> {
                 size: 20,
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Class Filter Button
+          Expanded(
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () async {
+                final selectedClass = await showCupertinoModalPopup<String>(
+                  context: context,
+                  builder:
+                      (context) => CupertinoActionSheet(
+                        title: const Text('Filter by Class'),
+                        actions:
+                            _students
+                                .map((student) => student['classes']?['name'])
+                                .where((name) => name != null)
+                                .toSet()
+                                .map(
+                                  (className) => CupertinoActionSheetAction(
+                                    onPressed: () {
+                                      Navigator.pop(context, className);
+                                    },
+                                    child: Text(className),
+                                  ),
+                                )
+                                .toList(),
+                        cancelButton: CupertinoActionSheetAction(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                );
+
+                setState(() {
+                  _selectedClassFilter = selectedClass;
+                });
+
+                _filterStudents();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemBlue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _selectedClassFilter ?? 'Filter by Class',
+                  style: const TextStyle(color: CupertinoColors.systemBlue),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 8), // Add spacing between buttons
+          // Department Filter Button
+          Expanded(
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () async {
+                final selectedDepartment =
+                    await showCupertinoModalPopup<String>(
+                      context: context,
+                      builder:
+                          (context) => CupertinoActionSheet(
+                            title: const Text('Filter by Department'),
+                            actions:
+                                _students
+                                    .map(
+                                      (student) =>
+                                          student['departments']?['name'],
+                                    )
+                                    .where((name) => name != null)
+                                    .toSet()
+                                    .map(
+                                      (departmentName) =>
+                                          CupertinoActionSheetAction(
+                                            onPressed: () {
+                                              Navigator.pop(
+                                                context,
+                                                departmentName,
+                                              );
+                                            },
+                                            child: Text(departmentName),
+                                          ),
+                                    )
+                                    .toList(),
+                            cancelButton: CupertinoActionSheetAction(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                    );
+
+                setState(() {
+                  _selectedDepartmentFilter = selectedDepartment;
+                });
+
+                _filterStudents();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemBlue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _selectedDepartmentFilter ?? 'Filter by Department',
+                  style: const TextStyle(color: CupertinoColors.systemBlue),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -127,7 +284,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
 
       final response = await Supabase.instance.client
           .from('students')
-          .select('*, departments(name)')
+          .select('*, departments(name), classes(name)')
           .eq('role_id', studentRoleId)
           .order('full_name');
 
@@ -150,9 +307,9 @@ class _StudentsListPageState extends State<StudentsListPage> {
           .from('students')
           .delete()
           .eq('id', studentId);
-      
+
       await _loadStudents(); // Reload the list
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Student deleted successfully')),
@@ -160,9 +317,9 @@ class _StudentsListPageState extends State<StudentsListPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error deleting student: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error deleting student: $e')));
       }
     }
   }
@@ -234,6 +391,14 @@ class _StudentsListPageState extends State<StudentsListPage> {
                           color: Color(0xFF8E8E93),
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Class: ${student['classes']?['name'] ?? 'Not Assigned'}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8E8E93),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -241,7 +406,10 @@ class _StudentsListPageState extends State<StudentsListPage> {
                   children: [
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      onPressed: () => context.push('/admin/students/edit/${student['id']}'),
+                      onPressed:
+                          () => context.push(
+                            '/admin/students/edit/${student['id']}',
+                          ),
                       child: const Icon(
                         CupertinoIcons.pencil,
                         color: CupertinoColors.systemBlue,
@@ -250,27 +418,31 @@ class _StudentsListPageState extends State<StudentsListPage> {
                     ),
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      onPressed: () => showCupertinoDialog(
-                        context: context,
-                        builder: (context) => CupertinoAlertDialog(
-                          title: const Text('Delete Student'),
-                          content: const Text('Are you sure you want to delete this student?'),
-                          actions: [
-                            CupertinoDialogAction(
-                              child: const Text('Cancel'),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                            CupertinoDialogAction(
-                              isDestructiveAction: true,
-                              child: const Text('Delete'),
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _deleteStudent(student['id']);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                      onPressed:
+                          () => showCupertinoDialog(
+                            context: context,
+                            builder:
+                                (context) => CupertinoAlertDialog(
+                                  title: const Text('Delete Student'),
+                                  content: const Text(
+                                    'Are you sure you want to delete this student?',
+                                  ),
+                                  actions: [
+                                    _buildDialogAction(
+                                      child: const Text('Cancel'),
+                                      onPressed: () => Navigator.pop(context),
+                                    ),
+                                    _buildDialogAction(
+                                      isDestructiveAction: true,
+                                      child: const Text('Delete'),
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        _deleteStudent(student['id']);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                          ),
                       child: const Icon(
                         CupertinoIcons.trash,
                         color: CupertinoColors.systemRed,
@@ -327,6 +499,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
             ),
           ),
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Padding(
@@ -334,59 +507,14 @@ class _StudentsListPageState extends State<StudentsListPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () => context.go('/admin'),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.back,
-                            color: CupertinoColors.systemBlue,
-                            size: 20,
-                          ),
+                      const Text(
+                        "Students",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E1E1E),
+                          letterSpacing: -0.5,
                         ),
-                      ),
-                      Row(
-                        children: [
-                          const Text(
-                            "Students",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E1E1E),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          if (_isFiltered) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.systemBlue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'Filtered',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: CupertinoColors.systemBlue,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
                       ),
                       Row(
                         children: [
@@ -408,7 +536,10 @@ class _StudentsListPageState extends State<StudentsListPage> {
                               ),
                               child: Icon(
                                 CupertinoIcons.search,
-                                color: _isFiltered ? CupertinoColors.systemBlue : CupertinoColors.systemGrey,
+                                color:
+                                    _isFiltered
+                                        ? CupertinoColors.systemBlue
+                                        : CupertinoColors.systemGrey,
                                 size: 20,
                               ),
                             ),
@@ -443,12 +574,9 @@ class _StudentsListPageState extends State<StudentsListPage> {
                   ),
                 ),
                 if (_showSearch) _buildSearchBar(),
+                _buildFilterButtons(),
                 if (_isLoading)
-                  const Expanded(
-                    child: Center(
-                      child: CustomLoader(),
-                    ),
-                  )
+                  const Expanded(child: Center(child: CustomLoader()))
                 else if (_error != null)
                   Expanded(
                     child: Center(
@@ -480,35 +608,40 @@ class _StudentsListPageState extends State<StudentsListPage> {
                   )
                 else
                   Expanded(
-                    child: _filteredStudents.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  CupertinoIcons.search,
-                                  color: Color(0xFF8E8E93),
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _searchController.text.isEmpty
-                                      ? 'No students found'
-                                      : 'No results found for "${_searchController.text}"',
-                                  style: const TextStyle(
+                    child:
+                        _filteredStudents.isEmpty
+                            ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    CupertinoIcons.search,
                                     color: Color(0xFF8E8E93),
-                                    fontSize: 16,
+                                    size: 48,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchController.text.isEmpty
+                                        ? 'No students found'
+                                        : 'No results found for "${_searchController.text}"',
+                                    style: const TextStyle(
+                                      color: Color(0xFF8E8E93),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            : ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              itemCount: _filteredStudents.length,
+                              itemBuilder:
+                                  (context, index) => _buildStudentCard(
+                                    _filteredStudents[index],
+                                  ),
                             ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            itemCount: _filteredStudents.length,
-                            itemBuilder: (context, index) =>
-                                _buildStudentCard(_filteredStudents[index]),
-                          ),
                   ),
               ],
             ),
@@ -517,4 +650,4 @@ class _StudentsListPageState extends State<StudentsListPage> {
       ),
     );
   }
-} 
+}

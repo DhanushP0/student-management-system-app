@@ -12,13 +12,7 @@ void main() async {
     anonKey: AppConfig.supabaseAnonKey,
   );
 
-  runApp(
-    const ProviderScope(
-      child: DeepLinkListener(
-        child: MyApp(),
-      ),
-    ),
-  );
+  runApp(const ProviderScope(child: DeepLinkListener(child: MyApp())));
 }
 
 class MyApp extends StatelessWidget {

@@ -58,7 +58,7 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
               final teacherName =
                   assignment['teacher_name']?.toString().toLowerCase() ?? '';
               final className =
-                  assignment['class']?.toString().toLowerCase() ?? '';
+                  assignment['class_id']?.toString().toLowerCase() ?? '';
               final searchQuery = query.toLowerCase();
 
               return title.contains(searchQuery) ||
@@ -78,13 +78,13 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
     });
 
     try {
-      // Get assignments with teacher info
+      // Fetch assignments
       final assignmentsRes = await Supabase.instance.client
           .from('assignments')
-          .select('id, title, description, due_date, teacher_id, class')
+          .select('id, title, description, due_date, teacher_id, class_id')
           .order('due_date');
 
-      // Get teachers info
+      // Fetch teacher info
       final teacherIds =
           assignmentsRes.map((a) => a['teacher_id'] as String).toSet();
       final teachersRes = await Supabase.instance.client
@@ -98,24 +98,24 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
           teacher['id'] as String: teacher['full_name'] as String,
       };
 
-      // Get class info from students
+      // Fetch class info
       final classRes = await Supabase.instance.client
-          .from('students')
-          .select('class, department_id')
-          .eq(
-            'role_id',
-            '1392a59a-1ddc-4bf5-a5a2-20e7a177ad7c',
-          ) // Student role ID
-          .not('class', 'is', null);
+          .from('classes')
+          .select('id, name, department_id')
+          .not('name', 'is', null);
 
-      // Create a map of class to department
+      // Create a map of class_id to class name and department id
       final classMap = {
-        for (var student in classRes)
-          student['class'] as String: student['department_id'] as String,
+        for (var cls in classRes)
+          cls['id'] as String: {
+            'name': cls['name'] as String,
+            'department_id': cls['department_id'] as String,
+          },
       };
 
-      // Get department names
-      final departmentIds = classMap.values.toSet();
+      // Fetch department info
+      final departmentIds =
+          classMap.values.map((cls) => cls['department_id']).toSet();
       final departmentsRes = await Supabase.instance.client
           .from('departments')
           .select('id, name')
@@ -131,15 +131,27 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
       final assignments =
           assignmentsRes.map<Map<String, dynamic>>((assignment) {
             final teacherId = assignment['teacher_id'] as String;
-            final className = assignment['class'] as String;
-            final departmentId = classMap[className];
+            final classId = assignment['class_id'] as String;
+
+            // Fetch teacher name
+            final teacherName = teacherMap[teacherId] ?? 'Unknown Teacher';
+
+            // Fetch class info
+            final classInfo = classMap[classId];
+            final className =
+                classInfo?['name'] ??
+                'Unknown Class'; // Ensure class name is fetched
+            final departmentId = classInfo?['department_id'];
             final departmentName =
-                departmentId != null ? departmentMap[departmentId] : null;
+                departmentId != null
+                    ? departmentMap[departmentId]
+                    : 'Unknown Department';
 
             return {
               ...Map<String, dynamic>.from(assignment),
-              'teacher_name': teacherMap[teacherId] ?? 'Unknown Teacher',
-              'department_name': departmentName ?? 'Unknown Department',
+              'teacher_name': teacherName,
+              'class_name': className, // Add class name to the assignment
+              'department_name': departmentName,
             };
           }).toList();
 
@@ -173,6 +185,18 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
         );
       }
     }
+  }
+
+  Widget _buildDialogAction({
+    required Widget child,
+    required VoidCallback onPressed,
+    bool isDestructiveAction = false,
+  }) {
+    return CupertinoDialogAction(
+      child: child,
+      onPressed: onPressed,
+      isDestructiveAction: isDestructiveAction,
+    );
   }
 
   Widget _buildSearchBar() {
@@ -294,7 +318,8 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            assignment['class'] ?? 'No Class',
+                            assignment['class_name'] ??
+                                'No Class', // Use 'class_name' instead of 'class'
                             style: const TextStyle(
                               fontSize: 14,
                               color: Color(0xFF8E8E93),
@@ -397,11 +422,11 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
                                     'Are you sure you want to delete "${assignment['title']}"? This action cannot be undone.',
                                   ),
                                   actions: [
-                                    CupertinoDialogAction(
+                                    _buildDialogAction(
                                       child: const Text('Cancel'),
                                       onPressed: () => Navigator.pop(context),
                                     ),
-                                    CupertinoDialogAction(
+                                    _buildDialogAction(
                                       isDestructiveAction: true,
                                       child: const Text('Delete'),
                                       onPressed: () {
@@ -468,6 +493,7 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
             ),
           ),
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Padding(
@@ -475,64 +501,14 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () => context.go('/admin'),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.back,
-                            color: CupertinoColors.systemBlue,
-                            size: 20,
-                          ),
+                      const Text(
+                        "Assignments",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E1E1E),
+                          letterSpacing: -0.5,
                         ),
-                      ),
-                      Row(
-                        children: [
-                          const Text(
-                            "Assignments",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E1E1E),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          if (_isFiltered) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.systemBlue.withOpacity(
-                                  0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'Filtered',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: CupertinoColors.systemBlue,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
                       ),
                       Row(
                         children: [
