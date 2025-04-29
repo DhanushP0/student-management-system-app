@@ -495,7 +495,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.orange.shade300.withOpacity(0.2),
+                color: CupertinoColors.systemBlue.withOpacity(0.1),
               ),
             ),
           ),

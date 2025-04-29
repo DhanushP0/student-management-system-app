@@ -193,9 +193,9 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
     bool isDestructiveAction = false,
   }) {
     return CupertinoDialogAction(
-      child: child,
       onPressed: onPressed,
       isDestructiveAction: isDestructiveAction,
+      child: child,
     );
   }
 

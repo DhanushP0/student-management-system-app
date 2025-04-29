@@ -142,10 +142,7 @@ final GoRouter appRouter = GoRouter(
               AssignSubjectPage(subjectId: state.pathParameters['id']!),
     ),
     GoRoute(path: '/student', builder: (context, state) => const StudentPage()),
-    GoRoute(
-      path: '/teacher',
-      builder: (context, state) => const TeacherDashboardPage(),
-    ),
+    GoRoute(path: '/teacher', builder: (context, state) => const TeacherPage()),
     GoRoute(
       path: '/admin/schedule',
       builder: (context, state) => const ScheduleListPage(),

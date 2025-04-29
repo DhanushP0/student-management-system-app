@@ -14,6 +14,7 @@ class StudentsListPage extends StatefulWidget {
 
 class _StudentsListPageState extends State<StudentsListPage> {
   bool _isLoading = true;
+  final _formKey = GlobalKey<FormState>();
   List<Map<String, dynamic>> _students = [];
   List<Map<String, dynamic>> _filteredStudents = [];
   String? _error;
@@ -84,9 +85,9 @@ class _StudentsListPageState extends State<StudentsListPage> {
     bool isDestructiveAction = false,
   }) {
     return CupertinoDialogAction(
-      child: child,
       onPressed: onPressed,
       isDestructiveAction: isDestructiveAction,
+      child: child,
     );
   }
 
@@ -499,55 +500,19 @@ class _StudentsListPageState extends State<StudentsListPage> {
             ),
           ),
           SafeArea(
-            bottom: false,
             child: Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Students",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E1E1E),
-                          letterSpacing: -0.5,
-                        ),
-                      ),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           CupertinoButton(
                             padding: EdgeInsets.zero,
-                            onPressed: _toggleSearch,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                CupertinoIcons.search,
-                                color:
-                                    _isFiltered
-                                        ? CupertinoColors.systemBlue
-                                        : CupertinoColors.systemGrey,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          CupertinoButton(
-                            padding: EdgeInsets.zero,
-                            onPressed: () => context.go('/admin/students/add'),
+                            onPressed: () => context.go('/admin'),
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
@@ -562,87 +527,145 @@ class _StudentsListPageState extends State<StudentsListPage> {
                                 ],
                               ),
                               child: const Icon(
-                                CupertinoIcons.add,
+                                CupertinoIcons.back,
                                 color: CupertinoColors.systemBlue,
                                 size: 20,
                               ),
                             ),
                           ),
+                          const Text(
+                            "Students",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E1E1E),
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              CupertinoButton(
+                                padding: EdgeInsets.zero,
+                                onPressed: _toggleSearch,
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.8),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    CupertinoIcons.search,
+                                    color:
+                                        _isFiltered
+                                            ? CupertinoColors.systemBlue
+                                            : CupertinoColors.systemGrey,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              CupertinoButton(
+                                padding: EdgeInsets.zero,
+                                onPressed:
+                                    () => context.go('/admin/students/add'),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.8),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    CupertinoIcons.add,
+                                    color: CupertinoColors.systemBlue,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
+                      if (_showSearch) _buildSearchBar(),
+                      _buildFilterButtons(),
                     ],
                   ),
                 ),
-                if (_showSearch) _buildSearchBar(),
-                _buildFilterButtons(),
-                if (_isLoading)
-                  const Expanded(child: Center(child: CustomLoader()))
-                else if (_error != null)
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.exclamationmark_circle,
-                            color: CupertinoColors.systemRed,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _error!,
-                            style: const TextStyle(
-                              color: CupertinoColors.systemRed,
-                              fontSize: 16,
+                Expanded(
+                  child:
+                      _isLoading
+                          ? const Center(child: CustomLoader())
+                          : _error != null
+                          ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  CupertinoIcons.exclamationmark_circle,
+                                  color: CupertinoColors.systemRed,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _error!,
+                                  style: const TextStyle(
+                                    color: CupertinoColors.systemRed,
+                                    fontSize: 16,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                CupertinoButton(
+                                  onPressed: _loadStudents,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          CupertinoButton(
-                            onPressed: _loadStudents,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child:
-                        _filteredStudents.isEmpty
-                            ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    CupertinoIcons.search,
+                          )
+                          : _filteredStudents.isEmpty
+                          ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  CupertinoIcons.search,
+                                  color: Color(0xFF8E8E93),
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _searchController.text.isEmpty
+                                      ? 'No students found'
+                                      : 'No results found for "${_searchController.text}"',
+                                  style: const TextStyle(
                                     color: Color(0xFF8E8E93),
-                                    size: 48,
+                                    fontSize: 16,
                                   ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _searchController.text.isEmpty
-                                        ? 'No students found'
-                                        : 'No results found for "${_searchController.text}"',
-                                    style: const TextStyle(
-                                      color: Color(0xFF8E8E93),
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                            : ListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              itemCount: _filteredStudents.length,
-                              itemBuilder:
-                                  (context, index) => _buildStudentCard(
-                                    _filteredStudents[index],
-                                  ),
+                                ),
+                              ],
                             ),
-                  ),
+                          )
+                          : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            itemCount: _filteredStudents.length,
+                            itemBuilder:
+                                (context, index) =>
+                                    _buildStudentCard(_filteredStudents[index]),
+                          ),
+                ),
               ],
             ),
           ),

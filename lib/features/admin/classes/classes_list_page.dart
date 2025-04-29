@@ -149,9 +149,9 @@ class _ClassesListPageState extends State<ClassesListPage> {
     bool isDestructiveAction = false,
   }) {
     return CupertinoDialogAction(
-      child: child,
       onPressed: onPressed,
       isDestructiveAction: isDestructiveAction,
+      child: child,
     );
   }
 
@@ -377,6 +377,29 @@ class _ClassesListPageState extends State<ClassesListPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () => context.go('/admin'),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            CupertinoIcons.back,
+                            color: CupertinoColors.systemBlue,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                       const Text(
                         "Classes",
                         style: TextStyle(

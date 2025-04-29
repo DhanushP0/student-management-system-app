@@ -1,9 +1,15 @@
 import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:student_management_app/core/widgets/custom_loader.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:async';
+import 'package:flutter/services.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -12,7 +18,7 @@ class AdminPage extends StatefulWidget {
   State<AdminPage> createState() => _AdminPageState();
 }
 
-class _AdminPageState extends State<AdminPage> {
+class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
   bool _isLoading = true;
   int _studentCount = 0;
   int _teacherCount = 0;
@@ -21,10 +27,220 @@ class _AdminPageState extends State<AdminPage> {
   final _profileKey = GlobalKey();
   String? _errorMessage;
 
+  // Controllers for animations
+  late AnimationController _mainAnimationController;
+  late AnimationController _pulseAnimationController;
+  late AnimationController _floatingAnimationController;
+  late AnimationController _backgroundAnimationController;
+  late AnimationController _welcomeAnimationController;
+
+  // Controllers for staggered animations
+  late List<AnimationController> _statCardControllers;
+  late List<AnimationController> _navButtonControllers;
+  late List<AnimationController> _quickActionControllers;
+
+  // Animation values
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  // For parallax and interactive effects
+  final double _backgroundOffsetX = 0;
+  final double _backgroundOffsetY = 0;
+  final double _maxBackgroundOffset = 15.0;
+
+  // Mouse hover states for menu items
+  final Map<int, bool> _navButtonHoverStates = {};
+  final Map<int, bool> _quickActionHoverStates = {};
+  final Map<int, bool> _statCardHoverStates = {};
+
+  // For scrolling animations
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0;
+
+  // Weather data for dashboard context
+  // final String _weatherCondition = "Sunny";
+  // final int _temperature = 72;
+
+  // For time-based greeting
+  String _greeting = "Good morning";
+
+  // For micro-interactions
+  bool _isRefreshing = false;
+  final bool _hasNewNotification = true;
+  final int _notificationCount = 3;
+
+  // For glowing effect
+  bool _showGlow = false;
+  Timer? _glowTimer;
+
   @override
   void initState() {
     super.initState();
+    _setGreeting();
     _loadStats();
+    _initializeAnimations();
+
+    // Start staggered animations
+    _startStaggeredAnimations();
+
+    // Listen to scroll events for parallax effects
+    _scrollController.addListener(() {
+      if (mounted) {
+        setState(() {
+          _scrollOffset = _scrollController.offset;
+        });
+      }
+    });
+
+    // Setup periodic glow effect
+    _glowTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) {
+        setState(() {
+          _showGlow = true;
+        });
+        Future.delayed(const Duration(milliseconds: 2000), () {
+          if (mounted) {
+            setState(() {
+              _showGlow = false;
+            });
+          }
+        });
+      }
+    });
+  }
+
+  void _setGreeting() {
+    final hour = DateTime.now().hour;
+    setState(() {
+      if (hour < 12) {
+        _greeting = "Good morning";
+      } else if (hour < 17) {
+        _greeting = "Good afternoon";
+      } else {
+        _greeting = "Good evening";
+      }
+    });
+  }
+
+  void _initializeAnimations() {
+    // Main animation controller
+    _mainAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    // Welcome animation controller for initial loading sequence
+    _welcomeAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    );
+
+    // Pulse animation for breathing effects
+    _pulseAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
+    // Floating animation for hover effects
+    _floatingAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    // Background animation for subtle movement
+    _backgroundAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 30000),
+    )..repeat();
+
+    // Scale and fade animations
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainAnimationController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _mainAnimationController, curve: Curves.easeOut),
+    );
+
+    // Individual controllers for staggered animations
+    _statCardControllers = List.generate(
+      4,
+      (index) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 800),
+      ),
+    );
+
+    _navButtonControllers = List.generate(
+      6,
+      (index) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 800),
+      ),
+    );
+
+    _quickActionControllers = List.generate(
+      4,
+      (index) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 700),
+      ),
+    );
+
+    // Start main animations
+    _mainAnimationController.forward();
+    _welcomeAnimationController.forward();
+  }
+
+  void _startStaggeredAnimations() {
+    // Delay for welcome animation to finish
+    Future.delayed(const Duration(milliseconds: 500), () {
+      // Start staggered animations for stat cards
+      for (int i = 0; i < _statCardControllers.length; i++) {
+        Future.delayed(Duration(milliseconds: 100 * i + 300), () {
+          if (mounted) _statCardControllers[i].forward();
+        });
+      }
+
+      // Start staggered animations for quick actions
+      for (int i = 0; i < _quickActionControllers.length; i++) {
+        Future.delayed(Duration(milliseconds: 80 * i + 200), () {
+          if (mounted) _quickActionControllers[i].forward();
+        });
+      }
+
+      // Start staggered animations for navigation buttons
+      for (int i = 0; i < _navButtonControllers.length; i++) {
+        Future.delayed(Duration(milliseconds: 120 * i + 600), () {
+          if (mounted) _navButtonControllers[i].forward();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _mainAnimationController.dispose();
+    _pulseAnimationController.dispose();
+    _floatingAnimationController.dispose();
+    _backgroundAnimationController.dispose();
+    _welcomeAnimationController.dispose();
+    _scrollController.dispose();
+    _glowTimer?.cancel();
+
+    for (var controller in _statCardControllers) {
+      controller.dispose();
+    }
+    for (var controller in _navButtonControllers) {
+      controller.dispose();
+    }
+    for (var controller in _quickActionControllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadStats() async {
@@ -34,6 +250,9 @@ class _AdminPageState extends State<AdminPage> {
     });
 
     try {
+      // Simulate network delay for better UX with loading animation
+      await Future.delayed(const Duration(milliseconds: 1200));
+
       // Get student count
       final studentRes = await Supabase.instance.client
           .from('students')
@@ -61,19 +280,108 @@ class _AdminPageState extends State<AdminPage> {
           .select('id', const FetchOptions(count: CountOption.exact));
       _assignmentCount = assignmentsRes.count ?? 0;
 
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Error loading stats: $e';
-      });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading stats: $e')));
+        setState(() {
+          _isLoading = false;
+        });
       }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error loading stats: $e';
+        });
+        _showErrorSnackBar('Error loading stats: $e');
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.error_outline, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade800,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        action: SnackBarAction(
+          label: 'RETRY',
+          textColor: Colors.white,
+          onPressed: _loadStats,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _refreshData() async {
+    if (_isRefreshing) return;
+
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    await _loadStats();
+
+    // Add a small delay to show the refresh animation
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (mounted) {
+      setState(() {
+        _isRefreshing = false;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Dashboard refreshed successfully!',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          elevation: 0,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
     }
   }
 
@@ -82,59 +390,281 @@ class _AdminPageState extends State<AdminPage> {
     required int count,
     required IconData icon,
     required Color color,
+    required int index,
+    String? growth,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-        child: Container(
+    // Initialize hover state if not present
+    _statCardHoverStates[index] ??= false;
+
+    return AnimatedBuilder(
+      animation: _statCardControllers[index],
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, (1 - _statCardControllers[index].value) * 50),
+          child: Opacity(
+            opacity: _statCardControllers[index].value,
+            child: child,
+          ),
+        );
+      },
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _statCardHoverStates[index] = true),
+        onExit: (_) => setState(() => _statCardHoverStates[index] = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          transform:
+              _statCardHoverStates[index] == true
+                  ? (Matrix4.identity()..translate(0.0, -8.0))
+                  : Matrix4.identity(),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.5),
-              width: 1.5,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withOpacity(0.8), color],
             ),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: color.withOpacity(
+                  _statCardHoverStates[index] == true ? 0.4 : 0.25,
+                ),
+                blurRadius: _statCardHoverStates[index] == true ? 25 : 15,
+                offset: Offset(0, _statCardHoverStates[index] == true ? 8 : 10),
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.2),
+                blurRadius: 0,
+                offset: const Offset(0, 1),
+                spreadRadius: 0,
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    shape: BoxShape.circle,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1.5,
                   ),
-                  child: Icon(icon, size: 28, color: color),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E1E1E),
-                  ),
+                child: Stack(
+                  children: [
+                    // Animated gradient overlay
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 1500),
+                      curve: Curves.easeInOut,
+                      top: _statCardHoverStates[index] == true ? -100 : -150,
+                      left: _statCardHoverStates[index] == true ? -100 : -150,
+                      child: Container(
+                        width: 300,
+                        height: 300,
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.1),
+                              Colors.white.withOpacity(0.05),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.4, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Background pattern
+                    Positioned(
+                      right: -20,
+                      bottom: -20,
+                      child: Icon(
+                        icon,
+                        size: 120,
+                        color: Colors.white.withOpacity(0.07),
+                      ),
+                    ),
+
+                    // Animated dots
+                    ...List.generate(8, (dotIndex) {
+                      final random = math.Random(index * 10 + dotIndex);
+                      return Positioned(
+                        top: random.nextDouble() * 180,
+                        left: random.nextDouble() * 150,
+                        child: AnimatedBuilder(
+                          animation: _pulseAnimationController,
+                          builder: (context, _) {
+                            final pulseValue =
+                                math.sin(
+                                      (_pulseAnimationController.value *
+                                              math.pi *
+                                              2) +
+                                          (index + dotIndex) * 0.5,
+                                    ) *
+                                    0.5 +
+                                0.5;
+
+                            return Container(
+                              width: 4 + pulseValue * 3,
+                              height: 4 + pulseValue * 3,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(
+                                  0.1 + pulseValue * 0.2,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }),
+
+                    // Content
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Icon(icon, size: 26, color: Colors.white),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            title,
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withOpacity(0.85),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Animated counter
+                          TweenAnimationBuilder<int>(
+                            tween: IntTween(begin: 0, end: count),
+                            duration: const Duration(milliseconds: 1500),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, value, child) {
+                              return Text(
+                                value.toString(),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: -0.5,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+
+                          // Growth indicator
+                          if (growth != null) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Builder(
+                                builder: (context) {
+                                  final bool isPositiveGrowth = growth
+                                      .startsWith('+');
+                                  final String adjustedGrowth =
+                                      isPositiveGrowth
+                                          ? growth
+                                          : growth.substring(1);
+                                  return Row(
+                                    children: [
+                                      Icon(
+                                        isPositiveGrowth
+                                            ? Icons.trending_up_rounded
+                                            : Icons.trending_down_rounded,
+                                        color:
+                                            isPositiveGrowth
+                                                ? Colors.green.shade200
+                                                : Colors.red.shade300,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        adjustedGrowth,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color:
+                                              isPositiveGrowth
+                                                  ? Colors.green.shade200
+                                                  : Colors.red.shade300,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Shimmer effect on hover
+                    if (_statCardHoverStates[index] == true)
+                      AnimatedBuilder(
+                        animation: _pulseAnimationController,
+                        builder: (context, _) {
+                          return Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: 30 * _pulseAnimationController.value,
+                                  sigmaY: 30 * _pulseAnimationController.value,
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white.withOpacity(
+                                          0.1 * _pulseAnimationController.value,
+                                        ),
+                                        Colors.white.withOpacity(0),
+                                        Colors.white.withOpacity(
+                                          0.05 *
+                                              _pulseAnimationController.value,
+                                        ),
+                                      ],
+                                      stops: const [0.0, 0.5, 1.0],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  count.toString(),
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -148,502 +678,287 @@ class _AdminPageState extends State<AdminPage> {
     required Color color,
     required VoidCallback onTap,
     required String description,
+    required int index,
+    bool isNew = false,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.5),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.15),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(icon, color: color, size: 26),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                description,
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+    // Initialize hover state if not present
+    _navButtonHoverStates[index] ??= false;
 
-  void _showProfileMenu() {
-    final RenderBox button =
-        _profileKey.currentContext!.findRenderObject() as RenderBox;
-    final RenderBox overlay =
-        Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
-    final RelativeRect position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(
-          button.size.bottomRight(Offset.zero),
-          ancestor: overlay,
-        ),
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    showMenu(
-      context: context,
-      position: position,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 0,
-      color: Colors.transparent,
-      items: [
-        PopupMenuItem(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.5),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.systemBlue.withOpacity(0.15),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: CupertinoColors.systemBlue.withOpacity(
-                                0.2,
-                              ),
-                              image: const DecorationImage(
-                                image: NetworkImage(
-                                  'https://ui-avatars.com/api/?name=Admin&background=0A84FF&color=fff',
-                                ),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Admin',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E1E1E),
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Administrator',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF8E8E93),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    _buildMenuItem(
-                      icon: CupertinoIcons.person_crop_circle,
-                      title: 'My Profile',
-                      onTap: () {
-                        context.push('/profile');
-                      },
-                    ),
-                    _buildMenuItem(
-                      icon: CupertinoIcons.bell,
-                      title: 'Notifications',
-                      onTap: () {
-                        context.push('/notifications');
-                      },
-                    ),
-                    _buildMenuItem(
-                      icon: CupertinoIcons.settings,
-                      title: 'Settings',
-                      onTap: () {
-                        context.push('/settings');
-                      },
-                    ),
-                    _buildMenuItem(
-                      icon: CupertinoIcons.square_arrow_right,
-                      title: 'Sign Out',
-                      isDestructive: true,
-                      onTap: () async {
-                        await _showSignOutConfirmation();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _showSignOutConfirmation() async {
-    final parentContext = context; // Capture the outer context
-
-    return showCupertinoDialog<void>(
-      context: parentContext,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-          child: CupertinoAlertDialog(
-            title: const Text("Sign Out"),
-            content: const Text("Are you sure you want to sign out?"),
-            actions: <Widget>[
-              CupertinoDialogAction(
-                child: const Text("Cancel"),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              CupertinoDialogAction(
-                isDestructiveAction: true,
-                onPressed: () async {
-                  Navigator.of(context).pop();
-                  await Supabase.instance.client.auth.signOut();
-
-                  // Use parentContext and mounted check
-                  if (mounted) {
-                    parentContext.go('/');
-                  }
-                },
-                child: const Text("Sign Out"),
-              ),
-            ],
+    return AnimatedBuilder(
+      animation: _navButtonControllers[index],
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset((1 - _navButtonControllers[index].value) * 60, 0),
+          child: Opacity(
+            opacity: _navButtonControllers[index].value,
+            child: child,
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          Navigator.pop(context);
-          onTap();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 22,
-                color:
-                    isDestructive
-                        ? CupertinoColors.systemRed
-                        : CupertinoColors.systemBlue,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color:
-                      isDestructive
-                          ? CupertinoColors.systemRed
-                          : const Color(0xFF1E1E1E),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Widget _searchBar() {
-  //   return ClipRRect(
-  //     borderRadius: BorderRadius.circular(16),
-  //     child: BackdropFilter(
-  //       filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-  //       child: Container(
-  //         decoration: BoxDecoration(
-  //           color: Colors.white.withOpacity(0.8),
-  //           borderRadius: BorderRadius.circular(16),
-  //           border: Border.all(
-  //             color: Colors.white.withOpacity(0.5),
-  //             width: 1.5,
-  //           ),
-  //         ),
-  //         child: const CupertinoTextField(
-  //           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-  //           placeholder: "Search...",
-  //           placeholderStyle: TextStyle(color: Color(0xFF8E8E93), fontSize: 16),
-  //           prefix: Padding(
-  //             padding: EdgeInsets.only(left: 8),
-  //             child: Icon(
-  //               CupertinoIcons.search,
-  //               color: CupertinoColors.systemGrey,
-  //               size: 20,
-  //             ),
-  //           ),
-  //           decoration: BoxDecoration(color: Colors.transparent),
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  Widget _errorBox(String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemRed.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: CupertinoColors.systemRed.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              CupertinoIcons.exclamationmark_circle,
-              color: CupertinoColors.systemRed,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: CupertinoColors.systemRed,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => setState(() => _errorMessage = null),
-              child: const Icon(
-                CupertinoIcons.xmark_circle_fill,
-                color: CupertinoColors.systemRed,
-                size: 20,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickAction({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _circle(Color color, double size) {
-    return Container(
-      height: size,
-      width: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: CupertinoColors.systemBackground,
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _navButtonHoverStates[index] = true),
+        onExit: (_) => setState(() => _navButtonHoverStates[index] = false),
+        child: GestureDetector(
+          onTap: () {
+            // Add haptic feedback
+            HapticFeedback.mediumImpact();
+            // Add tap animation before navigation
+            setState(() {
+              _navButtonHoverStates[index] = true;
+            });
+            Future.delayed(const Duration(milliseconds: 150), () {
+              setState(() {
+                _navButtonHoverStates[index] = false;
+              });
+              onTap();
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutQuint,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFF2F6FF), Color(0xFFF9F9F9)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _navButtonHoverStates[index] == true
+                      ? Colors.white.withOpacity(0.95)
+                      : Colors.white.withOpacity(0.85),
+                  _navButtonHoverStates[index] == true
+                      ? Colors.white.withOpacity(0.85)
+                      : Colors.white.withOpacity(0.7),
+                ],
               ),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color:
+                    _navButtonHoverStates[index] == true
+                        ? color.withOpacity(0.3)
+                        : Colors.white.withOpacity(0.8),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(
+                    _navButtonHoverStates[index] == true ? 0.25 : 0.15,
+                  ),
+                  blurRadius: _navButtonHoverStates[index] == true ? 25 : 15,
+                  offset: Offset(
+                    0,
+                    _navButtonHoverStates[index] == true ? 5 : 8,
+                  ),
+                  spreadRadius: _navButtonHoverStates[index] == true ? 2 : 0,
+                ),
+              ],
             ),
-          ),
-          Positioned(
-            top: -120,
-            right: -80,
-            child: _circle(CupertinoColors.systemBlue.withOpacity(0.1), 250),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -50,
-            child: _circle(CupertinoColors.systemIndigo.withOpacity(0.08), 200),
-          ),
-          _isLoading
-              ? const Center(child: CustomLoader())
-              : SafeArea(
-                child: RefreshIndicator(
-                  onRefresh: _loadStats,
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: _navButtonHoverStates[index] == true ? 10.0 : 5.0,
+                  sigmaY: _navButtonHoverStates[index] == true ? 10.0 : 5.0,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: Stack(
+                    children: [
+                      // Background pattern/icon
+                      Positioned(
+                        right: -25,
+                        bottom: -25,
+                        child: Icon(
+                          icon,
+                          size: 120,
+                          color: color.withOpacity(0.05),
+                        ),
+                      ),
+
+                      // Animated gradient overlay
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOut,
+                        top: _navButtonHoverStates[index] == true ? -20 : -100,
+                        right:
+                            _navButtonHoverStates[index] == true ? -20 : -100,
+                        child: Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              colors: [
+                                color.withOpacity(0.08),
+                                color.withOpacity(0.05),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.5, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Content
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Animated icon container
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeOutQuint,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    color.withOpacity(
+                                      _navButtonHoverStates[index] == true
+                                          ? 1.0
+                                          : 0.9,
+                                    ),
+                                    color.withOpacity(
+                                      _navButtonHoverStates[index] == true
+                                          ? 0.9
+                                          : 1.0,
+                                    ),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: color.withOpacity(
+                                      _navButtonHoverStates[index] == true
+                                          ? 0.4
+                                          : 0.3,
+                                    ),
+                                    blurRadius:
+                                        _navButtonHoverStates[index] == true
+                                            ? 15
+                                            : 10,
+                                    offset: const Offset(0, 5),
+                                    spreadRadius:
+                                        _navButtonHoverStates[index] == true
+                                            ? 1
+                                            : 0,
+                                  ),
+                                ],
+                              ),
+                              child: AnimatedBuilder(
+                                animation: _floatingAnimationController,
+                                builder: (context, child) {
+                                  return Transform.translate(
+                                    offset: Offset(
+                                      0,
+                                      _navButtonHoverStates[index] == true
+                                          ? math.sin(
+                                                _floatingAnimationController
+                                                        .value *
+                                                    math.pi *
+                                                    2,
+                                              ) *
+                                              3
+                                          : 0,
+                                    ),
+                                    child: child,
+                                  );
+                                },
+                                child: Icon(
+                                  icon,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 22),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  Row(
                                     children: [
-                                      const Text(
-                                        "Admin Dashboard",
-                                        style: TextStyle(
-                                          fontSize: 30,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF1E1E1E),
-                                          letterSpacing: -0.5,
+                                      Expanded(
+                                        child: Text(
+                                          title,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: color,
+                                            letterSpacing: -0.5,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "Welcome back, Admin",
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.grey[600],
-                                          letterSpacing: -0.3,
+                                      if (isNew)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.shade400,
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.green.shade200
+                                                    .withOpacity(0.5),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Text(
+                                            'NEW',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                              letterSpacing: -0.2,
+                                            ),
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   ),
-                                  GestureDetector(
-                                    key: _profileKey,
-                                    onTap: _showProfileMenu,
-                                    child: Container(
-                                      width: 50,
-                                      height: 60,
-                                      margin: const EdgeInsets.only(
-                                        top: 0,
-                                        right: 0,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: CupertinoColors.systemBlue
-                                            .withOpacity(0.1),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.8),
-                                          width: 2,
-                                        ),
-                                        image: const DecorationImage(
-                                          image: NetworkImage(
-                                            'https://ui-avatars.com/api/?name=Admin&background=0A84FF&color=fff',
-                                          ),
-                                          fit: BoxFit.cover,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.1,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    description,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
+                                      height: 1.5,
+                                    ),
+                                  ),
+
+                                  // Arrow indicator for hover state
+                                  AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 300),
+                                    opacity:
+                                        _navButtonHoverStates[index] == true
+                                            ? 1.0
+                                            : 0.0,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            'EXPLORE',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: color,
+                                              letterSpacing: 0.5,
                                             ),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 5),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            color: color,
+                                            size: 16,
                                           ),
                                         ],
                                       ),
@@ -651,251 +966,1013 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 24),
-                              // _searchBar(),
-                              if (_errorMessage != null)
-                                _errorBox(_errorMessage!),
-                              const SizedBox(height: 16),
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: [
-                                    _buildQuickAction(
-                                      title: "Add Student",
-                                      icon: CupertinoIcons.person_badge_plus,
-                                      color: CupertinoColors.systemBlue,
-                                      onTap:
-                                          () => context.push(
-                                            '/admin/students/add',
-                                          ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // New feature badge
+                      if (isNew)
+                        Positioned(
+                          top: -5,
+                          right: -5,
+                          child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.5),
+                                      blurRadius: 10,
+                                      spreadRadius: 2,
                                     ),
-                                    const SizedBox(width: 10),
-                                    _buildQuickAction(
-                                      title: "Add Teacher",
-                                      icon:
-                                          CupertinoIcons
-                                              .person_crop_circle_badge_plus,
-                                      color: CupertinoColors.systemGreen,
-                                      onTap:
-                                          () => context.push(
-                                            '/admin/teachers/add',
-                                          ),
-                                    ),
-                                    // const SizedBox(width: 10),
-                                    // _buildQuickAction(
-                                    //   title: "Reports",
-                                    //   icon: CupertinoIcons.chart_bar_alt_fill,
-                                    //   color: CupertinoColors.systemIndigo,
-                                    //   onTap:
-                                    //       () => context.push('/admin/reports'),
-                                    // ),
                                   ],
                                 ),
+                              )
+                              .animate(
+                                onPlay: (controller) => controller.repeat(),
+                              )
+                              .scale(
+                                duration: 1.seconds,
+                                begin: const Offset(0.8, 0.8),
+                                end: const Offset(1.2, 1.2),
+                              )
+                              .then()
+                              .scale(
+                                duration: 1.seconds,
+                                begin: const Offset(1.2, 1.2),
+                                end: const Offset(0.8, 0.8),
                               ),
-                              const SizedBox(height: 24),
-                              Padding(
-                                padding: const EdgeInsets.only(left: 4),
-                                child: Text(
-                                  "Dashboard Overview",
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                          ),
                         ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: GridView.count(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.85,
-                            children: [
-                              _buildStatCard(
-                                title: 'Students',
-                                count: _studentCount,
-                                icon: CupertinoIcons.person_2_fill,
-                                color: const Color(0xFF0A84FF),
-                              ),
-                              _buildStatCard(
-                                title: 'Teachers',
-                                count: _teacherCount,
-                                icon:
-                                    CupertinoIcons
-                                        .person_crop_circle_badge_checkmark,
-                                color: const Color(0xFF34C759),
-                              ),
-                              _buildStatCard(
-                                title: 'Classes',
-                                count: _classCount,
-                                icon: CupertinoIcons.book_fill,
-                                color: const Color(0xFFFF9500),
-                              ),
-                              _buildStatCard(
-                                title: 'Assignments',
-                                count: _assignmentCount,
-                                icon: CupertinoIcons.doc_text_fill,
-                                color: const Color(0xFFFF2D55),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 4,
-                                  bottom: 16,
-                                ),
-                                child: Text(
-                                  "Manage System",
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                              ),
-                              _buildNavigationButton(
-                                title: 'Students',
-                                icon: CupertinoIcons.person_2_fill,
-                                color: const Color(0xFF0A84FF),
-                                onTap: () => context.push('/admin/students'),
-                                description:
-                                    'View, add, edit, and manage student profiles and enrollment',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildNavigationButton(
-                                title: 'Teachers',
-                                icon:
-                                    CupertinoIcons
-                                        .person_crop_circle_badge_checkmark,
-                                color: const Color(0xFF34C759),
-                                onTap: () => context.push('/admin/teachers'),
-                                description:
-                                    'Manage faculty information, assignments, and class allocations',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildNavigationButton(
-                                title: 'Classes',
-                                icon: CupertinoIcons.book_fill,
-                                color: const Color(0xFFFF9500),
-                                onTap: () => context.push('/admin/classes'),
-                                description:
-                                    'Organize and monitor classroom data, schedules, and enrollments',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildNavigationButton(
-                                title: 'Assignments',
-                                icon: CupertinoIcons.doc_text_fill,
-                                color: const Color(0xFFFF2D55),
-                                onTap: () => context.push('/admin/assignments'),
-                                description:
-                                    'Track and manage assignments, submissions, and grading',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildNavigationButton(
-                                title: 'Subjects',
-                                icon: CupertinoIcons.book,
-                                color: const Color(0xFF5856D6),
-                                onTap: () => context.push('/admin/subjects'),
-                                description:
-                                    'Manage subjects and their details',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildNavigationButton(
-                                title: 'Schedule',
-                                icon: CupertinoIcons.calendar,
-                                color: const Color(0xFF00C7BE),
-                                onTap: () => context.push('/admin/schedule'),
-                                description:
-                                    'Manage class timetables, room assignments, and teacher schedules',
-                              ),
-                              const SizedBox(height: 32),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showActionsSheet(),
-        backgroundColor: CupertinoColors.systemBlue,
-        child: const Icon(Icons.add, color: Colors.white),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  void _showActionsSheet() {
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder:
-          (BuildContext context) => CupertinoActionSheet(
-            title: const Text('Quick Actions'),
-            message: const Text('Choose an action to perform'),
-            actions: <CupertinoActionSheetAction>[
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/admin/students/add');
-                },
-                child: const Text('Add New Student'),
+  Widget _buildQuickActionButton({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required int index,
+  }) {
+    // Initialize hover state if not present
+    _quickActionHoverStates[index] ??= false;
+
+    return AnimatedBuilder(
+      animation: _quickActionControllers[index],
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, (1 - _quickActionControllers[index].value) * 40),
+          child: Opacity(
+            opacity: _quickActionControllers[index].value,
+            child: child,
+          ),
+        );
+      },
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _quickActionHoverStates[index] = true),
+        onExit: (_) => setState(() => _quickActionHoverStates[index] = false),
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            setState(() {
+              _quickActionHoverStates[index] = true;
+            });
+            Future.delayed(const Duration(milliseconds: 150), () {
+              setState(() {
+                _quickActionHoverStates[index] = false;
+              });
+              onTap();
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutQuint,
+            decoration: BoxDecoration(
+              color:
+                  _quickActionHoverStates[index] == true ? color : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color:
+                    _quickActionHoverStates[index] == true
+                        ? Colors.transparent
+                        : color.withOpacity(0.3),
+                width: 1.5,
               ),
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/admin/teachers/add');
-                },
-                child: const Text('Add New Teacher'),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(
+                    _quickActionHoverStates[index] == true ? 0.4 : 0.15,
+                  ),
+                  blurRadius: _quickActionHoverStates[index] == true ? 20 : 10,
+                  offset: Offset(
+                    0,
+                    _quickActionHoverStates[index] == true ? 5 : 8,
+                  ),
+                  spreadRadius: _quickActionHoverStates[index] == true ? 2 : 0,
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color:
+                          _quickActionHoverStates[index] == true
+                              ? Colors.white.withOpacity(0.25)
+                              : color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 22,
+                      color:
+                          _quickActionHoverStates[index] == true
+                              ? Colors.white
+                              : color,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color:
+                          _quickActionHoverStates[index] == true
+                              ? Colors.white
+                              : color,
+                    ),
+                  ),
+                ],
               ),
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/admin/classes/add');
-                },
-                child: const Text('Create New Class'),
-              ),
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/admin/assignments/add');
-                },
-                child: const Text('Create New Assignment'),
-              ),
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/admin/schedule/add');
-                },
-                child: const Text('Add New Schedule'),
-              ),
-            ],
-            cancelButton: CupertinoActionSheetAction(
-              isDefaultAction: true,
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileSection() {
+    return AnimatedBuilder(
+      animation: _mainAnimationController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Opacity(opacity: _fadeAnimation.value, child: child),
+        );
+      },
+      child: Container(
+        key: _profileKey,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade600.withOpacity(0.9),
+              Colors.indigo.shade800.withOpacity(0.95),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.indigo.shade300.withOpacity(0.4),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
+              spreadRadius: 0,
+            ),
+            BoxShadow(
+              color: Colors.indigo.shade700.withOpacity(0.6),
+              blurRadius: 50,
+              offset: const Offset(0, 20),
+              spreadRadius: -5,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Weather and welcome section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Greeting
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AnimatedTextKit(
+                      animatedTexts: [
+                        TypewriterAnimatedText(
+                          _greeting,
+                          speed: const Duration(milliseconds: 150),
+                          cursor: '',
+                          textStyle: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withOpacity(0.85),
+                          ),
+                        ),
+                      ],
+                      isRepeatingAnimation: false,
+                      totalRepeatCount: 1,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          'Admin',
+                          style: GoogleFonts.poppins(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade400,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.verified,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'VERIFIED',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                // Weather widget
+                // Container(
+                //   padding: const EdgeInsets.all(16),
+                //   decoration: BoxDecoration(
+                //     color: Colors.white.withOpacity(0.1),
+                //     borderRadius: BorderRadius.circular(20),
+                //     border: Border.all(
+                //       color: Colors.white.withOpacity(0.2),
+                //       width: 1.5,
+                //     ),
+                //   ),
+                //   child: Row(
+                //     children: [
+                //       Icon(
+                //         _weatherCondition == "Sunny"
+                //             ? Icons.wb_sunny_rounded
+                //             : _weatherCondition == "Cloudy"
+                //             ? Icons.cloud_rounded
+                //             : _weatherCondition == "Rainy"
+                //             ? Icons.water_drop_rounded
+                //             : Icons.wb_twilight_rounded,
+                //         color: Colors.white,
+                //         size: 26,
+                //       ),
+                //       const SizedBox(width: 12),
+                //       Column(
+                //         crossAxisAlignment: CrossAxisAlignment.start,
+                //         children: [
+                //           Text(
+                //             _weatherCondition,
+                //             style: GoogleFonts.poppins(
+                //               fontSize: 14,
+                //               fontWeight: FontWeight.w500,
+                //               color: Colors.white,
+                //             ),
+                //           ),
+                //           const SizedBox(height: 2),
+                //           Text(
+                //             '$_temperature°F',
+                //             style: GoogleFonts.poppins(
+                //               fontSize: 18,
+                //               fontWeight: FontWeight.bold,
+                //               color: Colors.white,
+                //             ),
+                //           ),
+                //         ],
+                //       ),
+                //     ],
+                //   ),
+                // ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Interactive progress bar
+            Row(
+              children: [
+                // Visual element
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Background ring
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Animated progress ring
+                    TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: 0, end: 0.75),
+                      duration: const Duration(milliseconds: 1800),
+                      curve: Curves.easeOutQuart,
+                      builder: (context, value, child) {
+                        return SizedBox(
+                          width: 70,
+                          height: 70,
+                          child: CircularProgressIndicator(
+                            value: value,
+                            strokeWidth: 6,
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    // Center icon
+                    AnimatedBuilder(
+                      animation: _pulseAnimationController,
+                      builder: (context, child) {
+                        final pulseValue =
+                            math.sin(
+                                  _pulseAnimationController.value * math.pi,
+                                ) *
+                                0.1 +
+                            1.0;
+                        return Transform.scale(
+                          scale: pulseValue,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.4),
+                                  blurRadius: 15,
+                                  spreadRadius: 0,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.trending_up_rounded,
+                              color: Colors.blue.shade600,
+                              size: 20,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(width: 24),
+
+                // Progress text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'System Performance',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0, end: 75),
+                        duration: const Duration(milliseconds: 1500),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, child) {
+                          return RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${value.toInt()}% Optimal',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ' • 25% above average',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.green.shade300,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackgroundEffects() {
+    return Positioned.fill(
+      child: AnimatedBuilder(
+        animation: _backgroundAnimationController,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(
+              math.sin(_backgroundAnimationController.value * math.pi * 2) *
+                      _maxBackgroundOffset +
+                  _backgroundOffsetX,
+              math.cos(_backgroundAnimationController.value * math.pi * 2) *
+                      _maxBackgroundOffset +
+                  _backgroundOffsetY,
+            ),
+            child: child,
+          );
+        },
+        child: Opacity(
+          opacity: 1.0,
+          child: Image.asset(
+            'assets/images/image3.png', // Ensure the file exists at this location
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationBadge() {
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.notifications_outlined,
+            color: Colors.black54,
+            size: 24,
+          ),
+        ),
+        if (_hasNewNotification)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.5),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Text(
+                _notificationCount.toString(),
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Define color schemes
+    final studentColor = Colors.blue.shade600;
+    final teacherColor = Colors.purple.shade600;
+    final classColor = Colors.amber.shade700;
+    final assignmentColor = Colors.green.shade600;
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      body: Stack(
+        children: [
+          // Background effects
+          _buildBackgroundEffects(),
+
+          // Main content
+          _isLoading
+              ? const Center(child: CustomLoader())
+              : _errorMessage != null
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 60,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Oops! Something went wrong',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _errorMessage!,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: _loadStats,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Try Again'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              : SafeArea(
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    // App bar with profile and actions
+                    SliverAppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      floating: true,
+                      pinned: false,
+                      automaticallyImplyLeading: false,
+                      actions: [
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              // Refresh button
+                              InkWell(
+                                onTap: _isRefreshing ? null : _refreshData,
+                                borderRadius: BorderRadius.circular(16),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child:
+                                      _isRefreshing
+                                          ? SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.blue.shade600,
+                                                  ),
+                                            ),
+                                          )
+                                          : const Icon(
+                                            Icons.refresh_rounded,
+                                            color: Colors.black54,
+                                            size: 24,
+                                          ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+
+                              // Notification badge
+                              InkWell(
+                                onTap: () {
+                                  HapticFeedback.mediumImpact();
+                                  // Show notification panel
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Notifications panel will be available soon!',
+                                        style: GoogleFonts.poppins(),
+                                      ),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: _buildNotificationBadge(),
+                              ),
+                              const SizedBox(width: 16),
+
+                              // Profile avatar
+                              InkWell(
+                                onTap: () {
+                                  HapticFeedback.mediumImpact();
+                                  context.push('/profile');
+                                },
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color:
+                                          _showGlow
+                                              ? Colors.blue.shade400
+                                              : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      if (_showGlow)
+                                        BoxShadow(
+                                          color: Colors.blue.shade400
+                                              .withOpacity(0.5),
+                                          blurRadius: 12,
+                                          spreadRadius: 2,
+                                        ),
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: Colors.blue.shade100,
+                                    child: Text(
+                                      "A",
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                      ],
+                      expandedHeight: 80,
+                    ),
+
+                    // Main content
+                    SliverPadding(
+                      padding: const EdgeInsets.all(24),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          // Profile and welcome section
+                          _buildProfileSection(),
+                          const SizedBox(height: 36),
+
+                          // Quick stats grid
+                          Text(
+                            'Quick Stats',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Calculate if we need to adjust aspect ratio based on available width
+                              final isWideScreen = constraints.maxWidth > 600;
+                              final isMediumScreen =
+                                  constraints.maxWidth > 400 &&
+                                  constraints.maxWidth <= 600;
+                              final isSmallScreen = constraints.maxWidth <= 400;
+
+                              // Dynamic aspect ratio based on screen width
+                              double aspectRatio;
+                              if (isWideScreen) {
+                                aspectRatio = 1.4; // Wider screens
+                              } else if (isMediumScreen) {
+                                aspectRatio = 0.9; // Medium screens
+                              } else {
+                                aspectRatio = 0.7; // Small screens
+                              }
+
+                              // Always use 2 columns but adjust the aspect ratio for narrower screens
+                              return GridView.count(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 20,
+                                crossAxisSpacing: 20,
+                                // Adjust aspect ratio based on screen width for better fit
+                                childAspectRatio: aspectRatio,
+                                children: [
+                                  _buildStatCard(
+                                    title: 'Students',
+                                    count: _studentCount,
+                                    icon: Icons.school_rounded,
+                                    color: studentColor,
+                                    index: 0,
+                                  ),
+                                  _buildStatCard(
+                                    title: 'Teachers',
+                                    count: _teacherCount,
+                                    icon: Icons.person_rounded,
+                                    color: teacherColor,
+                                    index: 1,
+                                  ),
+                                  _buildStatCard(
+                                    title: 'Classes',
+                                    count: _classCount,
+                                    icon: Icons.class_rounded,
+                                    color: classColor,
+                                    index: 2,
+                                  ),
+                                  _buildStatCard(
+                                    title: 'Assignments',
+                                    count: _assignmentCount,
+                                    icon: Icons.assignment_rounded,
+                                    color: assignmentColor,
+                                    index: 3,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 36),
+
+                          // Quick actions row
+                          Text(
+                            'Quick Actions',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            child: Row(
+                              children: [
+                                _buildQuickActionButton(
+                                  title: 'Add Student',
+                                  icon: Icons.person_add_rounded,
+                                  color: studentColor,
+                                  onTap:
+                                      () => context.push('/admin/students/add'),
+                                  index: 0,
+                                ),
+                                const SizedBox(width: 16),
+                                _buildQuickActionButton(
+                                  title: 'Add Teacher',
+                                  icon: Icons.person_add_alt_1_rounded,
+                                  color: teacherColor,
+                                  onTap:
+                                      () => context.push('/admin/teachers/add'),
+                                  index: 1,
+                                ),
+                                const SizedBox(width: 16),
+                                _buildQuickActionButton(
+                                  title: 'Create Class',
+                                  icon: Icons.add_box_rounded,
+                                  color: classColor,
+                                  onTap:
+                                      () => context.push('/admin/classes/add'),
+                                  index: 2,
+                                ),
+                                const SizedBox(width: 16),
+                                _buildQuickActionButton(
+                                  title: 'New Assignment',
+                                  icon: Icons.assignment_add,
+                                  color: assignmentColor,
+                                  onTap:
+                                      () => context.push(
+                                        '/admin/assignments/add',
+                                      ),
+                                  index: 3,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 36),
+
+                          // Navigation menu
+                          Text(
+                            'Navigation',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Navigation buttons
+                          _buildNavigationButton(
+                            title: 'Students',
+                            icon: Icons.school_rounded,
+                            color: studentColor,
+                            description:
+                                'View and manage all student records and profiles',
+                            onTap: () => context.push('/admin/students'),
+                            index: 0,
+                          ),
+                          _buildNavigationButton(
+                            title: 'Teachers',
+                            icon: Icons.person_rounded,
+                            color: teacherColor,
+                            description:
+                                'View and manage teacher information and assignments',
+                            onTap: () => context.push('/admin/teachers'),
+                            index: 1,
+                          ),
+                          _buildNavigationButton(
+                            title: 'Classes',
+                            icon: Icons.class_rounded,
+                            color: classColor,
+                            description:
+                                'Organize and view class schedules and enrollments',
+                            onTap: () => context.push('/admin/classes'),
+                            index: 2,
+                          ),
+                          _buildNavigationButton(
+                            title: 'Assignments',
+                            icon: Icons.assignment_rounded,
+                            color: assignmentColor,
+                            description:
+                                'Track and grade assignments for all classes',
+                            onTap: () => context.push('/admin/assignments'),
+                            index: 3,
+                            isNew: true,
+                          ),
+                          _buildNavigationButton(
+                            title: 'Reports',
+                            icon: Icons.analytics_rounded,
+                            color: Colors.teal.shade600,
+                            description:
+                                'View detailed analytics and generate reports',
+                            onTap: () => context.push('/admin/reports'),
+                            index: 4,
+                          ),
+                          _buildNavigationButton(
+                            title: 'Settings',
+                            icon: Icons.settings_rounded,
+                            color: Colors.blueGrey.shade600,
+                            description:
+                                'Configure system preferences and user access',
+                            onTap: () => context.push('/admin/settings'),
+                            index: 5,
+                          ),
+
+                          // Footer spacing
+                          const SizedBox(height: 40),
+
+                          // Footer with app info
+                          Center(
+                            child: Text(
+                              'Student Management System v1.2.0',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black45,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                        ]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+      // floatingActionButton:
+      //     _isLoading || _errorMessage != null
+      //         ? null
+      //         : FloatingActionButton.extended(
+      //           onPressed: () {
+      //             HapticFeedback.mediumImpact();
+      //             ScaffoldMessenger.of(context).showSnackBar(
+      //               SnackBar(
+      //                 content: Text(
+      //                   'Help center will be available soon!',
+      //                   style: GoogleFonts.poppins(),
+      //                 ),
+      //                 duration: const Duration(seconds: 2),
+      //               ),
+      //             );
+      //           },
+      //           backgroundColor: Colors.blue.shade600,
+      //           elevation: 4,
+      //           icon: const Icon(Icons.help_outline_rounded),
+      //           label: Text(
+      //             'Help',
+      //             style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+      //           ),
+      //         ),
     );
   }
 }
