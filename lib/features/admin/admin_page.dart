@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:student_management_app/core/widgets/custom_loader.dart';
@@ -1343,7 +1342,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
                             value: value,
                             strokeWidth: 6,
                             backgroundColor: Colors.white.withOpacity(0.2),
-                            valueColor: AlwaysStoppedAnimation<Color>(
+                            valueColor: const AlwaysStoppedAnimation<Color>(
                               Colors.white,
                             ),
                           ),
