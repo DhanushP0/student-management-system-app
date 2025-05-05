@@ -30,6 +30,13 @@ import '../features/admin/subjects/assign_subject_page.dart';
 import '../features/admin/schedule/schedule_list_page.dart';
 import '../features/admin/schedule/add_schedule_page.dart';
 import '../features/admin/schedule/edit_schedule_page.dart';
+import '../features/teacher/subjects/subjects_page.dart';
+import '../features/teacher/students/students_page.dart';
+import '../features/teacher/assignments/assignments_page.dart';
+import '../features/teacher/attendance/attendance_page.dart';
+import '../features/teacher/grades/grades_page.dart';
+import '../features/teacher/schedule/schedule_page.dart';
+import '../features/teacher/assignments/add_assignment_page.dart';
 
 // Export the router so it can be imported in main.dart
 export 'app_config.dart' show navigatorKey;
@@ -156,6 +163,35 @@ final GoRouter appRouter = GoRouter(
       builder:
           (context, state) =>
               EditSchedulePage(scheduleId: state.pathParameters['id']!),
+    ),
+    // Teacher section routes
+    GoRoute(
+      path: '/teacher/subject-year',
+      builder: (context, state) => const SubjectsPage(),
+    ),
+    GoRoute(
+      path: '/teacher/students/:classId',
+      builder: (context, state) => const StudentsPage(),
+    ),
+    GoRoute(
+      path: '/teacher/assignments',
+      builder: (context, state) => const AssignmentsPage(),
+    ),
+    GoRoute(
+      path: '/teacher/assignments/add',
+      builder: (context, state) => const AddAssignmentTeachersPage(),
+    ),
+    GoRoute(
+      path: '/teacher/attendance/:classId',
+      builder: (context, state) => const AttendancePage(),
+    ),
+    GoRoute(
+      path: '/teacher/grades',
+      builder: (context, state) => const GradesPage(),
+    ),
+    GoRoute(
+      path: '/teacher/schedule/:classId',
+      builder: (context, state) => const SchedulePage(),
     ),
   ],
 );

@@ -8,10 +8,7 @@ import 'package:student_management_app/core/widgets/custom_loader.dart';
 class EditAssignmentPage extends StatefulWidget {
   final String assignmentId;
 
-  const EditAssignmentPage({
-    super.key,
-    required this.assignmentId,
-  });
+  const EditAssignmentPage({super.key, required this.assignmentId});
 
   @override
   State<EditAssignmentPage> createState() => _EditAssignmentPageState();
@@ -21,7 +18,7 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  
+
   DateTime _dueDate = DateTime.now();
   String? _selectedTeacherId;
   String? _selectedClassName;
@@ -49,29 +46,32 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
 
   Future<void> _loadAssignment() async {
     try {
-      final response = await Supabase.instance.client
-          .from('assignments')
-          .select('''
+      final response =
+          await Supabase.instance.client
+              .from('assignments')
+              .select('''
             *,
             teachers:teacher_id (
-              name,
+              id,
+              full_name,
               email
             ),
-            class:class(
+            classes:class_id (
+              id,
               name,
               department_id
             )
           ''')
-          .eq('id', widget.assignmentId)
-          .single();
-      
+              .eq('id', widget.assignmentId)
+              .single();
+
       if (mounted) {
         setState(() {
           _titleController.text = response['title'] ?? '';
           _descriptionController.text = response['description'] ?? '';
           _dueDate = DateTime.parse(response['due_date']);
           _selectedTeacherId = response['teacher_id'];
-          _selectedClassName = response['class'];
+          _selectedClassName = response['classes']?['id'];
           _isLoading = false;
         });
       }
@@ -90,8 +90,11 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
       final response = await Supabase.instance.client
           .from('teachers')
           .select('id,full_name')
-          .eq('role_id', '42ba7a8b-51ba-4ea4-87f9-d807a05af783'); // Teacher role ID
-      
+          .eq(
+            'role_id',
+            '42ba7a8b-51ba-4ea4-87f9-d807a05af783',
+          ); // Teacher role ID
+
       setState(() {
         _teachers = List<Map<String, dynamic>>.from(response);
       });
@@ -103,9 +106,9 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
   Future<void> _loadClasses() async {
     try {
       final response = await Supabase.instance.client
-          .from('teachers')
-          .select('id,class,department_id');
-      
+          .from('classes')
+          .select('id, name, department_id');
+
       setState(() {
         _classes = List<Map<String, dynamic>>.from(response);
       });
@@ -225,83 +228,123 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
               onTap: () {
                 showCupertinoModalPopup(
                   context: context,
-                  builder: (BuildContext context) => Container(
-                    height: 300,
-                    padding: const EdgeInsets.only(bottom: 6),
-                    margin: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    color: CupertinoColors.systemBackground.resolveFrom(context),
-                    child: SafeArea(
-                      top: false,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  builder:
+                      (BuildContext context) => Container(
+                        height: 300,
+                        padding: const EdgeInsets.only(bottom: 6),
+                        margin: EdgeInsets.only(
+                          bottom: MediaQuery.of(context).viewInsets.bottom,
+                        ),
+                        color: CupertinoColors.systemBackground.resolveFrom(
+                          context,
+                        ),
+                        child: SafeArea(
+                          top: false,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              CupertinoButton(
-                                child: const Text('Cancel'),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                              Text(
-                                'Select $label',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                              Container(
+                                height: 40,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: CupertinoColors.systemBackground
+                                      .resolveFrom(context),
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: CupertinoColors.systemGrey4
+                                          .resolveFrom(context),
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    CupertinoButton(
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    Text(
+                                      label,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    CupertinoButton(
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Done'),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              CupertinoButton(
-                                child: const Text('Done'),
-                                onPressed: () => Navigator.pop(context),
+                              Expanded(
+                                child: CupertinoPicker(
+                                  itemExtent: 32,
+                                  onSelectedItemChanged: (index) {
+                                    final item = items[index];
+                                    onChanged(item['id']);
+                                  },
+                                  children:
+                                      items.map((item) {
+                                        return Center(
+                                          child: Text(
+                                            item[itemLabelKey] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                ),
                               ),
                             ],
                           ),
-                          const Divider(height: 0),
-                          Expanded(
-                            child: CupertinoPicker(
-                              itemExtent: 32,
-                              onSelectedItemChanged: (int index) {
-                                onChanged(items[index]['id']);
-                              },
-                              children: items.map((item) {
-                                return Text(item[itemLabelKey]);
-                              }).toList(),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
                 );
               },
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
-                    Icon(icon, color: CupertinoColors.systemBlue),
+                    Icon(icon, color: CupertinoColors.systemGrey),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             label,
                             style: const TextStyle(
                               fontSize: 14,
-                              color: Colors.grey,
+                              color: CupertinoColors.systemGrey,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             selectedValue != null
-                                ? items.firstWhere((item) => item['id'] == selectedValue)[itemLabelKey]
+                                ? items.firstWhere(
+                                      (item) => item['id'] == selectedValue,
+                                      orElse: () => {itemLabelKey: hintText},
+                                    )[itemLabelKey] ??
+                                    hintText
                                 : hintText,
                             style: TextStyle(
                               fontSize: 16,
-                              color: selectedValue != null
-                                  ? const Color(0xFF1E1E1E)
-                                  : Colors.grey,
+                              color:
+                                  selectedValue != null
+                                      ? CupertinoColors.label
+                                      : CupertinoColors.systemGrey,
                             ),
                           ),
                         ],
@@ -310,6 +353,7 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                     const Icon(
                       CupertinoIcons.chevron_down,
                       color: CupertinoColors.systemGrey,
+                      size: 20,
                     ),
                   ],
                 ),
@@ -346,23 +390,26 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
               onTap: () {
                 showCupertinoModalPopup(
                   context: context,
-                  builder: (BuildContext context) => Container(
-                    height: 216,
-                    padding: const EdgeInsets.only(bottom: 6),
-                    margin: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    color: CupertinoColors.systemBackground.resolveFrom(context),
-                    child: SafeArea(
-                      top: false,
-                      child: CupertinoDatePicker(
-                        initialDateTime: selectedDate,
-                        mode: CupertinoDatePickerMode.date,
-                        use24hFormat: true,
-                        onDateTimeChanged: onChanged,
+                  builder:
+                      (BuildContext context) => Container(
+                        height: 216,
+                        padding: const EdgeInsets.only(bottom: 6),
+                        margin: EdgeInsets.only(
+                          bottom: MediaQuery.of(context).viewInsets.bottom,
+                        ),
+                        color: CupertinoColors.systemBackground.resolveFrom(
+                          context,
+                        ),
+                        child: SafeArea(
+                          top: false,
+                          child: CupertinoDatePicker(
+                            initialDateTime: selectedDate,
+                            mode: CupertinoDatePickerMode.date,
+                            use24hFormat: true,
+                            onDateTimeChanged: onChanged,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
                 );
               },
               child: Padding(
@@ -393,7 +440,10 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                         ],
                       ),
                     ),
-                    const Icon(CupertinoIcons.calendar, color: CupertinoColors.systemGrey),
+                    const Icon(
+                      CupertinoIcons.calendar,
+                      color: CupertinoColors.systemGrey,
+                    ),
                   ],
                 ),
               ),
@@ -427,7 +477,7 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: CupertinoColors.systemBlue.withOpacity(0.1),
+                color:const Color(0xFFFF2D55).withOpacity(0.2),
               ),
             ),
           ),
@@ -506,10 +556,11 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                               controller: _titleController,
                               label: "Title",
                               icon: CupertinoIcons.doc_text,
-                              validator: (val) =>
-                                  val != null && val.isNotEmpty
-                                      ? null
-                                      : "Please enter a title",
+                              validator:
+                                  (val) =>
+                                      val != null && val.isNotEmpty
+                                          ? null
+                                          : "Please enter a title",
                             ),
                             _buildFormField(
                               controller: _descriptionController,
@@ -553,10 +604,13 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                                 margin: const EdgeInsets.only(bottom: 16),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: CupertinoColors.systemRed.withOpacity(0.1),
+                                  color: CupertinoColors.systemRed.withOpacity(
+                                    0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: CupertinoColors.systemRed.withOpacity(0.3),
+                                    color: CupertinoColors.systemRed
+                                        .withOpacity(0.3),
                                   ),
                                 ),
                                 child: Row(
@@ -584,45 +638,54 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                               onPressed: _isSaving ? null : _updateAssignment,
                               child: Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFF007AFF), Color(0xFF0066CC)],
+                                    colors: [
+                                      Color(0xFF007AFF),
+                                      Color(0xFF0066CC),
+                                    ],
                                   ),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF007AFF).withOpacity(0.3),
+                                      color: const Color(
+                                        0xFF007AFF,
+                                      ).withOpacity(0.3),
                                       blurRadius: 12,
                                       offset: const Offset(0, 6),
                                     ),
                                   ],
                                 ),
                                 child: Center(
-                                  child: _isSaving
-                                      ? const CustomLoader(
-                                          size: 28,
-                                          color: Colors.white,
-                                        )
-                                      : const Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              CupertinoIcons.checkmark_circle,
-                                              color: Colors.white,
-                                              size: 18,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              "Update Assignment",
-                                              style: TextStyle(
+                                  child:
+                                      _isSaving
+                                          ? const CustomLoader(
+                                            size: 28,
+                                            color: Colors.white,
+                                          )
+                                          : const Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                CupertinoIcons.checkmark_circle,
                                                 color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
+                                                size: 18,
                                               ),
-                                            ),
-                                          ],
-                                        ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                "Update Assignment",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                 ),
                               ),
                             ),

@@ -1788,7 +1788,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
                                     index: 2,
                                   ),
                                   _buildStatCard(
-                                    title: 'Assignments',
+                                    title: 'Assigmen',
                                     count: _assignmentCount,
                                     icon: Icons.assignment_rounded,
                                     color: assignmentColor,
@@ -1906,15 +1906,15 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
                             index: 3,
                             isNew: true,
                           ),
-                          _buildNavigationButton(
-                            title: 'Reports',
-                            icon: Icons.analytics_rounded,
-                            color: Colors.teal.shade600,
-                            description:
-                                'View detailed analytics and generate reports',
-                            onTap: () => context.push('/admin/reports'),
-                            index: 4,
-                          ),
+                          // _buildNavigationButton(
+                          //   title: 'Reports',
+                          //   icon: Icons.analytics_rounded,
+                          //   color: Colors.teal.shade600,
+                          //   description:
+                          //       'View detailed analytics and generate reports',
+                          //   onTap: () => context.push('/admin/reports'),
+                          //   index: 4,
+                          // ),
                           _buildNavigationButton(
                             title: 'Settings',
                             icon: Icons.settings_rounded,

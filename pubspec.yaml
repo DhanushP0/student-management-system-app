@@ -43,6 +43,7 @@ dependencies:
   lottie: ^2.3.1
   animated_text_kit: ^4.2.1
   fl_chart: ^0.70.2
+  table_calendar: ^3.0.9
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
