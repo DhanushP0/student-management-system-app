@@ -18,6 +18,7 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
   final _formKey = GlobalKey<FormState>();
   final _timeController = TextEditingController();
   final _roomController = TextEditingController();
+  final _dateController = TextEditingController();
 
   // Add new time-related controllers
   final _startTimeController = TextEditingController();
@@ -31,6 +32,7 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
   String? _selectedDepartmentId;
   String? _selectedClassId;
   String? _selectedSubjectId;
+  DateTime? _selectedDate;
 
   List<Map<String, dynamic>> _teachers = [];
   List<Map<String, dynamic>> _departments = [];
@@ -49,6 +51,7 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
     _roomController.dispose();
     _startTimeController.dispose();
     _endTimeController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 
@@ -80,6 +83,13 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
       _selectedDepartmentId = scheduleResponse['department_id'];
       _selectedClassId = scheduleResponse['class_id'];
       _selectedSubjectId = scheduleResponse['subject_id'];
+
+      // Set the date if it exists
+      if (scheduleResponse['date'] != null) {
+        _selectedDate = DateTime.parse(scheduleResponse['date']);
+        _dateController.text =
+            "${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.year}";
+      }
 
       // Parse the time slot if it has the format "start - end"
       final String timeSlot = scheduleResponse['time'] ?? '';
@@ -205,9 +215,12 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
 
   Future<void> _updateSchedule() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedTeacherId == null || _selectedDepartmentId == null) {
+    if (_selectedTeacherId == null ||
+        _selectedDepartmentId == null ||
+        _selectedDate == null) {
       setState(() {
-        _error = 'Please select all required fields (Teacher and Department)';
+        _error =
+            'Please select all required fields (Teacher, Department, and Date)';
       });
       return;
     }
@@ -233,6 +246,7 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
         'department_id': _selectedDepartmentId,
         'class_id': _selectedClassId,
         'subject_id': _selectedSubjectId,
+        'date': _selectedDate!.toIso8601String().split('T')[0],
       };
 
       await Supabase.instance.client
@@ -648,6 +662,37 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
     }
   }
 
+  Future<void> _showDatePicker() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF00C7BE),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        // Format date as "MM/DD/YYYY"
+        _dateController.text =
+            "${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}";
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -744,6 +789,23 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
                               ),
                               const SizedBox(height: 32),
 
+                              // Date picker field
+                              GestureDetector(
+                                onTap: _showDatePicker,
+                                child: AbsorbPointer(
+                                  child: _buildFormField(
+                                    controller: _dateController,
+                                    label: "Date",
+                                    icon: CupertinoIcons.calendar,
+                                    validator:
+                                        (val) =>
+                                            val != null && val.isNotEmpty
+                                                ? null
+                                                : "Please select a date",
+                                  ),
+                                ),
+                              ),
+
                               // Time picker field
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -772,7 +834,9 @@ class _EditSchedulePageState extends State<EditSchedulePage> {
                                         value: _useCustomDuration,
                                         onChanged:
                                             (_) => _toggleCustomDuration(),
-                                        activeTrackColor: const Color(0xFF00C7BE),
+                                        activeTrackColor: const Color(
+                                          0xFF00C7BE,
+                                        ),
                                       ),
                                     ],
                                   ),

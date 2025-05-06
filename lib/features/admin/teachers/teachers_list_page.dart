@@ -147,7 +147,7 @@ class _TeachersListPageState extends State<TeachersListPage> {
           class_id,
           department_id,
           departments ( name ),
-          classes!inner(id, name)
+          classes!teachers_class_fkey(id, name)
         ''')
           .eq('role_id', teacherRoleId)
           .order('full_name');
@@ -368,31 +368,31 @@ class _TeachersListPageState extends State<TeachersListPage> {
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Row(
-                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          CupertinoButton(
-                            padding: EdgeInsets.zero,
-                            onPressed: () => context.go('/admin'),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () => context.go('/admin'),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
-                              child: const Icon(
-                                CupertinoIcons.back,
-                                color: CupertinoColors.systemBlue,
-                                size: 20,
-                              ),
-                            ),
+                            ],
                           ),
+                          child: const Icon(
+                            CupertinoIcons.back,
+                            color: CupertinoColors.systemBlue,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                       const Text(
                         "Teachers",
                         style: TextStyle(

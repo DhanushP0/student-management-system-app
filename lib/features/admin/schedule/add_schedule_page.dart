@@ -16,6 +16,7 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
   final _formKey = GlobalKey<FormState>();
   final _timeController = TextEditingController();
   final _roomController = TextEditingController();
+  final _dateController = TextEditingController();
 
   // Add new time-related controllers
   final _startTimeController = TextEditingController();
@@ -28,6 +29,7 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
   String? _selectedDepartmentId;
   String? _selectedClassId;
   String? _selectedSubjectId;
+  DateTime? _selectedDate;
 
   List<Map<String, dynamic>> _teachers = [];
   List<Map<String, dynamic>> _departments = [];
@@ -48,6 +50,7 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
     _roomController.dispose();
     _startTimeController.dispose();
     _endTimeController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 
@@ -119,6 +122,37 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
     } catch (e) {
       setState(() {
         _error = 'Failed to load subjects: $e';
+      });
+    }
+  }
+
+  Future<void> _showDatePicker() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF00C7BE),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        // Format date as "MMM dd, yyyy" (e.g., "Jan 01, 2024")
+        _dateController.text =
+            "${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}";
       });
     }
   }
@@ -288,9 +322,12 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
 
   Future<void> _addSchedule() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedTeacherId == null || _selectedDepartmentId == null) {
+    if (_selectedTeacherId == null ||
+        _selectedDepartmentId == null ||
+        _selectedDate == null) {
       setState(() {
-        _error = 'Please select all required fields (Teacher and Department)';
+        _error =
+            'Please select all required fields (Teacher, Department, and Date)';
       });
       return;
     }
@@ -316,6 +353,10 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
         'department_id': _selectedDepartmentId,
         'class_id': _selectedClassId,
         'subject_id': _selectedSubjectId,
+        'date':
+            _selectedDate!.toIso8601String().split(
+              'T',
+            )[0], // Format as YYYY-MM-DD
       };
 
       await Supabase.instance.client.from('schedule').insert(scheduleData);
@@ -631,6 +672,23 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
                         ],
                       ),
                       const SizedBox(height: 32),
+
+                      // Date picker field
+                      GestureDetector(
+                        onTap: _showDatePicker,
+                        child: AbsorbPointer(
+                          child: _buildFormField(
+                            controller: _dateController,
+                            label: "Date",
+                            icon: CupertinoIcons.calendar,
+                            validator:
+                                (val) =>
+                                    val != null && val.isNotEmpty
+                                        ? null
+                                        : "Please select a date",
+                          ),
+                        ),
+                      ),
 
                       // Time picker field
                       Column(

@@ -37,6 +37,12 @@ import '../features/teacher/attendance/attendance_page.dart';
 import '../features/teacher/grades/grades_page.dart';
 import '../features/teacher/schedule/schedule_page.dart';
 import '../features/teacher/assignments/add_assignment_page.dart';
+import '../features/teacher/grades/give_grade_page.dart';
+import '../features/student/assignments/assignments_page.dart';
+import '../features/student/grades/grades_page.dart';
+import '../features/student/schedule/schedule_page.dart';
+import '../features/student/attendance/attendance_page.dart';
+import '../features/student/subjects/subjects_page.dart';
 
 // Export the router so it can be imported in main.dart
 export 'app_config.dart' show navigatorKey;
@@ -182,16 +188,52 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const AddAssignmentTeachersPage(),
     ),
     GoRoute(
-      path: '/teacher/attendance/:classId',
-      builder: (context, state) => const AttendancePage(),
+      path: '/teacher/attendance/:scheduleId',
+      builder: (context, state) {
+        final scheduleId = state.pathParameters['scheduleId'];
+        if (scheduleId == null) {
+          throw Exception('Schedule ID is required');
+        }
+        return AttendancePage(scheduleId: scheduleId);
+      },
     ),
     GoRoute(
       path: '/teacher/grades',
       builder: (context, state) => const GradesPage(),
     ),
     GoRoute(
+      path: '/teacher/grades/give/:studentId',
+      builder: (context, state) {
+        final studentId = state.pathParameters['studentId'];
+        if (studentId == null) {
+          throw Exception('Student ID is required');
+        }
+        return GiveGradePage(studentId: studentId);
+      },
+    ),
+    GoRoute(
       path: '/teacher/schedule/:classId',
       builder: (context, state) => const SchedulePage(),
+    ),
+    GoRoute(
+      path: '/student/assignments',
+      builder: (context, state) => const AssignmentsStudentPage(),
+    ),
+    GoRoute(
+      path: '/student/grades',
+      builder: (context, state) => const StudentGradesPage(),
+    ),
+    GoRoute(
+      path: '/student/schedule',
+      builder: (context, state) => const StudentSchedulePage(),
+    ),
+    GoRoute(
+      path: '/student/attendance',
+      builder: (context, state) => const StudentAttendancePage(),
+    ),
+    GoRoute(
+      path: '/student/subjects',
+      builder: (context, state) => const StudentSubjectsPage(),
     ),
   ],
 );

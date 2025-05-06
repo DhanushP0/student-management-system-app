@@ -23,6 +23,8 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
   int _teacherCount = 0;
   int _classCount = 0;
   int _assignmentCount = 0;
+  int _scheduleCount = 0;
+  int _subjectsCount = 0;
   final _profileKey = GlobalKey();
   String? _errorMessage;
 
@@ -174,7 +176,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
     );
 
     _navButtonControllers = List.generate(
-      6,
+      7,
       (index) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 800),
@@ -278,6 +280,18 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
           .from('assignments')
           .select('id', const FetchOptions(count: CountOption.exact));
       _assignmentCount = assignmentsRes.count ?? 0;
+
+      // Get schedule count
+      final scheduleRes = await Supabase.instance.client
+          .from('schedule')
+          .select('id', const FetchOptions(count: CountOption.exact));
+      _scheduleCount = scheduleRes.count ?? 0;
+
+      // Get subjects count
+      final subjectsRes = await Supabase.instance.client
+          .from('subjects')
+          .select('id', const FetchOptions(count: CountOption.exact));
+      _subjectsCount = subjectsRes.count ?? 0;
 
       if (mounted) {
         setState(() {
@@ -1788,10 +1802,10 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
                                     index: 2,
                                   ),
                                   _buildStatCard(
-                                    title: 'Assigmen',
-                                    count: _assignmentCount,
-                                    icon: Icons.assignment_rounded,
-                                    color: assignmentColor,
+                                    title: 'Subjects',
+                                    count: _subjectsCount,
+                                    icon: Icons.book_rounded,
+                                    color: const Color(0xFF5856D6),
                                     index: 3,
                                   ),
                                 ],
@@ -1897,24 +1911,33 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
                             index: 2,
                           ),
                           _buildNavigationButton(
+                            title: 'Subjects',
+                            icon: Icons.book_rounded,
+                            color: const Color(0xFF5856D6),
+                            description:
+                                'Manage subjects and their assignments',
+                            onTap: () => context.push('/admin/subjects'),
+                            index: 3,
+                          ),
+                          _buildNavigationButton(
+                            title: 'Schedule',
+                            icon: Icons.calendar_today_rounded,
+                            color: const Color(0xFF00C7BE),
+                            description:
+                                'Manage class schedules and timetables',
+                            onTap: () => context.push('/admin/schedule'),
+                            index: 4,
+                          ),
+                          _buildNavigationButton(
                             title: 'Assignments',
                             icon: Icons.assignment_rounded,
                             color: assignmentColor,
                             description:
                                 'Track and grade assignments for all classes',
                             onTap: () => context.push('/admin/assignments'),
-                            index: 3,
+                            index: 5,
                             isNew: true,
                           ),
-                          // _buildNavigationButton(
-                          //   title: 'Reports',
-                          //   icon: Icons.analytics_rounded,
-                          //   color: Colors.teal.shade600,
-                          //   description:
-                          //       'View detailed analytics and generate reports',
-                          //   onTap: () => context.push('/admin/reports'),
-                          //   index: 4,
-                          // ),
                           _buildNavigationButton(
                             title: 'Settings',
                             icon: Icons.settings_rounded,
@@ -1922,7 +1945,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
                             description:
                                 'Configure system preferences and user access',
                             onTap: () => context.push('/admin/settings'),
-                            index: 5,
+                            index: 6,
                           ),
 
                           // Footer spacing
