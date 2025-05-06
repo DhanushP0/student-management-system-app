@@ -41,10 +41,30 @@ class _AddAssignmentPageState extends State<AddAssignmentTeachersPage> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
+      // First check if teacher exists by ID
+      final teacherCheck = await Supabase.instance.client
+          .from('teachers')
+          .select()
+          .eq('id', user.id);
+
+      String teacherId = user.id;
+
+      // If teacher not found by ID, try to find by email
+      if (teacherCheck.isEmpty) {
+        final emailCheck = await Supabase.instance.client
+            .from('teachers')
+            .select()
+            .eq('email', user.email);
+
+        if (emailCheck.isNotEmpty) {
+          teacherId = emailCheck[0]['id'];
+        }
+      }
+
       final response = await Supabase.instance.client
           .from('classes')
           .select('id, name')
-          .eq('teacher_id', user.id);
+          .eq('teacher_id', teacherId);
 
       setState(() {
         _classes = List<Map<String, dynamic>>.from(response);
@@ -70,11 +90,31 @@ class _AddAssignmentPageState extends State<AddAssignmentTeachersPage> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
+      // First check if teacher exists by ID
+      final teacherCheck = await Supabase.instance.client
+          .from('teachers')
+          .select()
+          .eq('id', user.id);
+
+      String teacherId = user.id;
+
+      // If teacher not found by ID, try to find by email
+      if (teacherCheck.isEmpty) {
+        final emailCheck = await Supabase.instance.client
+            .from('teachers')
+            .select()
+            .eq('email', user.email);
+
+        if (emailCheck.isNotEmpty) {
+          teacherId = emailCheck[0]['id'];
+        }
+      }
+
       await Supabase.instance.client.from('assignments').insert({
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
         'due_date': _dueDate.toIso8601String(),
-        'teacher_id': user.id,
+        'teacher_id': teacherId,
         'class_id': _selectedClassId,
       });
 

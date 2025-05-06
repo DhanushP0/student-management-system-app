@@ -21,12 +21,14 @@ class _AssignmentsPageState extends State<AssignmentsPage>
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showSearch = false;
+  List<Map<String, dynamic>> _classes = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadAssignments();
+    _loadClasses();
   }
 
   @override
@@ -221,6 +223,24 @@ class _AssignmentsPageState extends State<AssignmentsPage>
         _errorMessage = 'Failed to load assignments. Please try again later.';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadClasses() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final response = await Supabase.instance.client
+          .from('classes')
+          .select('id, name')
+          .eq('teacher_id', user.id);
+
+      setState(() {
+        _classes = List<Map<String, dynamic>>.from(response);
+      });
+    } catch (e) {
+      // Optionally handle error
     }
   }
 
@@ -464,7 +484,7 @@ class _AssignmentsPageState extends State<AssignmentsPage>
                     const Spacer(),
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                                           onPressed:
+                      onPressed:
                           () => context.push(
                             '/admin/assignments/edit/${assignment['id']}',
                           ),
@@ -1044,3 +1064,4 @@ class _TeacherInfoDialogState extends State<TeacherInfoDialog> {
     );
   }
 }
+ 
