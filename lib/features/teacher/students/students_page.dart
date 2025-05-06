@@ -221,17 +221,17 @@ class _StudentsPageState extends State<StudentsPage> {
                     ],
                   ),
                 ),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    // TODO: Navigate to student details
-                  },
-                  child: const Icon(
-                    CupertinoIcons.chevron_right,
-                    color: CupertinoColors.systemBlue,
-                    size: 20,
-                  ),
-                ),
+                // CupertinoButton(
+                //   padding: EdgeInsets.zero,
+                //   onPressed: () {
+                //     // TODO: Navigate to student details
+                //   },
+                //   child: const Icon(
+                //     CupertinoIcons.chevron_right,
+                //     color: CupertinoColors.systemBlue,
+                //     size: 20,
+                //   ),
+                // ),
               ],
             ),
           ),

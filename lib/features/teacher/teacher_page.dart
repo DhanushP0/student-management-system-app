@@ -1697,7 +1697,9 @@ class _TeacherPageState extends State<TeacherPage>
                                   icon: Icons.how_to_reg_rounded,
                                   color: attendanceColor,
                                   onTap:
-                                      () => context.push('/teacher/assignments/add'),
+                                      () => context.push(
+                                        '/teacher/schedule/:classId',
+                                      ),
                                   index: 0,
                                 ),
                                 const SizedBox(width: 16),
@@ -1725,7 +1727,7 @@ class _TeacherPageState extends State<TeacherPage>
                                   icon: Icons.calendar_today_rounded,
                                   color: classColor,
                                   onTap:
-                                      () => context.push('/teacher/schedule'),
+                                      () => context.push('/teacher/schedule/:classId'),
                                   index: 3,
                                 ),
                               ],
@@ -1759,7 +1761,9 @@ class _TeacherPageState extends State<TeacherPage>
                             icon: Icons.school_rounded,
                             color: studentColor,
                             description: 'View and manage your students',
-                            onTap: () => context.push('/teacher/students/:classId'),
+                            onTap:
+                                () =>
+                                    context.push('/teacher/students/:classId'),
                             index: 1,
                           ),
                           _buildNavigationButton(
@@ -1770,14 +1774,17 @@ class _TeacherPageState extends State<TeacherPage>
                             onTap: () => context.push('/teacher/assignments'),
                             index: 2,
                           ),
-                          _buildNavigationButton(
-                            title: 'Attendance',
-                            icon: Icons.how_to_reg_rounded,
-                            color: attendanceColor,
-                            description: 'Take and view attendance records',
-                            onTap: () => context.push('/teacher/attendance/:classId'),
-                            index: 3,
-                          ),
+                          // _buildNavigationButton(
+                          //   title: 'Attendance',
+                          //   icon: Icons.how_to_reg_rounded,
+                          //   color: attendanceColor,
+                          //   description: 'Take and view attendance records',
+                          //   onTap:
+                          //       () => context.push(
+                          //         '/teacher/attendance/:classId',
+                          //       ),
+                          //   index: 3,
+                          // ),
                           _buildNavigationButton(
                             title: 'Grades',
                             icon: Icons.grade_rounded,

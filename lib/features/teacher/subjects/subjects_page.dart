@@ -115,7 +115,12 @@ class _SubjectsPageState extends State<SubjectsPage> {
             year_id,
             subjects (
               id,
-              name
+              name,
+              class_id,
+              classes (
+                id,
+                name
+              )
             ),
             years (
               id,
@@ -140,6 +145,7 @@ class _SubjectsPageState extends State<SubjectsPage> {
   Widget _buildSubjectCard(Map<String, dynamic> subject) {
     final subjectData = subject['subjects'] as Map<String, dynamic>;
     final yearData = subject['years'] as Map<String, dynamic>;
+    final className = subjectData['classes']?['name'] ?? 'No Class';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -201,13 +207,17 @@ class _SubjectsPageState extends State<SubjectsPage> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Class: $className',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8E8E93),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
-                ),
-                const Icon(
-                  CupertinoIcons.chevron_right,
-                  color: CupertinoColors.systemGrey,
-                  size: 20,
                 ),
               ],
             ),
