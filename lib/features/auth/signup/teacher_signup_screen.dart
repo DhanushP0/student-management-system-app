@@ -14,19 +14,20 @@ class TeacherSignUpPage extends StatefulWidget {
 
 class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Form controllers
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _classController = TextEditingController();
   final _subjectController = TextEditingController();
-  
+
   List<Map<String, dynamic>> _departments = [];
+  List<Map<String, dynamic>> _classes = [];
   String? _selectedDepartmentId;
-  
+  String? _selectedClassId;
+
   bool _isLoading = true;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
@@ -40,21 +41,35 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
 
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
-    await Future.wait([_loadDepartments()]);
+    await _loadDepartments();
     setState(() => _isLoading = false);
   }
 
   Future<void> _loadDepartments() async {
-    setState(() => _isLoading = true);
     try {
       final res = await Supabase.instance.client
           .from('departments')
-          .select('id, name');
+          .select('id, name')
+          .order('name');
       _departments = List<Map<String, dynamic>>.from(res);
     } catch (e) {
       print('❌ Error loading departments: $e');
-    } finally {
-      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadClasses(String departmentId) async {
+    try {
+      final res = await Supabase.instance.client
+          .from('classes')
+          .select('id, name')
+          .eq('department_id', departmentId)
+          .order('name');
+      setState(() {
+        _classes = List<Map<String, dynamic>>.from(res);
+        _selectedClassId = null; // Reset selected class when department changes
+      });
+    } catch (e) {
+      print('❌ Error loading classes: $e');
     }
   }
 
@@ -70,9 +85,10 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     showCupertinoDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CustomLoader(size: 60, color: Color(0xFF0A84FF)),
-      ),
+      builder:
+          (_) => const Center(
+            child: CustomLoader(size: 60, color: Color(0xFF0A84FF)),
+          ),
     );
 
     try {
@@ -80,7 +96,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
       final password = _passwordController.text;
       final name = _nameController.text.trim();
       final phone = _phoneController.text.trim();
-      final className = _classController.text.trim();
+      final className = _selectedClassId;
       final subject = _subjectController.text.trim();
 
       // Sign up with Supabase Auth
@@ -110,9 +126,9 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
 
         if (mounted) {
           Navigator.of(context).pop(); // Dismiss loading dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Signup successful!'))
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('✅ Signup successful!')));
           // Navigate to login page
           context.go('/login');
         }
@@ -204,12 +220,13 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                           size: 20,
                         ),
                       ),
-                      suffix: suffix != null
-                          ? Padding(
-                              padding: const EdgeInsets.only(right: 16),
-                              child: suffix,
-                            )
-                          : null,
+                      suffix:
+                          suffix != null
+                              ? Padding(
+                                padding: const EdgeInsets.only(right: 16),
+                                child: suffix,
+                              )
+                              : null,
                       decoration: const BoxDecoration(
                         color: Colors.transparent,
                       ),
@@ -247,207 +264,141 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     );
   }
 
-  Widget _buildDropdownField({
+  Widget _buildAppleStyleDropdown({
     required String label,
     required IconData icon,
+    required String? selectedValue,
     required List<Map<String, dynamic>> items,
-    required String? value,
-    required void Function(String?) onChanged,
-    String? Function(String?)? validator,
+    required String displayField,
+    required String valueField,
+    required Function(String?) onChanged,
+    required String placeholder,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+          filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(16),
+              color: CupertinoColors.systemBackground.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.white.withOpacity(0.5),
-                width: 1,
+                color: CupertinoColors.systemGrey5,
+                width: 0.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: CupertinoColors.black.withOpacity(0.05),
                   blurRadius: 10,
-                  offset: const Offset(0, 5),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: FormField<String>(
-              initialValue: value,
-              validator: validator,
-              builder: (FormFieldState<String> field) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        // Show a cupertino style modal picker
-                        showCupertinoModalPopup(
-                          context: field.context,
-                          builder: (BuildContext context) {
-                            return Container(
-                              height: 280,
-                              padding: const EdgeInsets.only(top: 6.0),
-                              // The bottom margin is provided to align the popup with the system navigation bar
-                              margin: EdgeInsets.only(
-                                bottom: MediaQuery.of(context).viewInsets.bottom,
-                              ),
-                              // Use a backdrop filter for the frosted glass effect
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.systemBackground
-                                    .resolveFrom(context),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
-                                ),
-                              ),
-                              // Use a SafeArea widget to avoid system overlaps.
-                              child: SafeArea(
-                                top: false,
-                                child: Column(
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                showCupertinoModalPopup(
+                  context: context,
+                  builder:
+                      (BuildContext context) => CupertinoActionSheet(
+                        title: Text('Select $label'),
+                        message: const Text('Tap an option to select it'),
+                        actions:
+                            items.map((item) {
+                              bool isSelected =
+                                  selectedValue == item[valueField];
+                              return CupertinoActionSheetAction(
+                                onPressed: () {
+                                  onChanged(item[valueField]);
+                                  Navigator.pop(context);
+                                },
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    // Picker header with title and done button
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 16,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: CupertinoColors.systemBackground
-                                            .resolveFrom(context),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            "Select $label",
-                                            style: const TextStyle(
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          CupertinoButton(
-                                            padding: EdgeInsets.zero,
-                                            onPressed: () => Navigator.of(context).pop(),
-                                            child: const Text(
-                                              "Done",
-                                              style: TextStyle(
-                                                color: CupertinoColors.systemBlue,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                    Text(
+                                      item[displayField],
+                                      style: TextStyle(
+                                        color:
+                                            isSelected
+                                                ? CupertinoColors.activeBlue
+                                                : CupertinoColors.label,
+                                        fontWeight:
+                                            isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.normal,
                                       ),
                                     ),
-
-                                    // Picker body
-                                    Expanded(
-                                      child: CupertinoPicker(
-                                        magnification: 1.2,
-                                        useMagnifier: true,
-                                        itemExtent: 40,
-                                        // This is called when selected item is changed.
-                                        onSelectedItemChanged: (int i) {
-                                          final selected = items[i]['id'].toString();
-                                          onChanged(selected);
-                                          field.didChange(selected);
-                                        },
-                                        scrollController: FixedExtentScrollController(
-                                          initialItem: value != null
-                                              ? items.indexWhere(
-                                                  (item) => item['id'].toString() == value,
-                                                )
-                                              : 0,
-                                        ),
-                                        children: items.map((item) {
-                                          return Center(
-                                            child: Text(
-                                              item['name'],
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
+                                    if (isSelected)
+                                      const Icon(
+                                        CupertinoIcons.check_mark,
+                                        color: CupertinoColors.activeBlue,
+                                        size: 18,
                                       ),
-                                    ),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              icon,
-                              color: CupertinoColors.systemGrey,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                value != null
-                                    ? items.firstWhere(
-                                        (item) => item['id'].toString() == value,
-                                        orElse: () => {'name': ''},
-                                      )['name']
-                                    : label,
-                                style: TextStyle(
-                                  color: value != null
-                                      ? Colors.black87
-                                      : const Color(0xFF8E8E93),
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                            const Icon(
-                              CupertinoIcons.chevron_down,
-                              color: CupertinoColors.systemGrey,
-                              size: 16,
-                            ),
-                          ],
+                              );
+                            }).toList(),
+                        cancelButton: CupertinoActionSheetAction(
+                          isDefaultAction: true,
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
                         ),
                       ),
-                    ),
-                    if (field.hasError)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 16,
-                          top: 8,
-                          bottom: 4,
-                        ),
-                        child: Text(
-                          field.errorText!,
-                          style: const TextStyle(
-                            color: CupertinoColors.systemRed,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                  ],
                 );
               },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, color: CupertinoColors.secondaryLabel, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            label,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: CupertinoColors.secondaryLabel,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            selectedValue != null
+                                ? items.firstWhere(
+                                  (item) => item[valueField] == selectedValue,
+                                  orElse: () => {displayField: placeholder},
+                                )[displayField]
+                                : placeholder,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color:
+                                  selectedValue != null
+                                      ? CupertinoColors.label
+                                      : CupertinoColors.tertiaryLabel,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      CupertinoIcons.chevron_down,
+                      color: CupertinoColors.tertiaryLabel,
+                      size: 14,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -558,10 +509,11 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                           controller: _nameController,
                           placeholder: "Full Name",
                           icon: CupertinoIcons.person,
-                          validator: (val) =>
-                              val != null && val.isNotEmpty
-                                  ? null
-                                  : "Please enter your name",
+                          validator:
+                              (val) =>
+                                  val != null && val.isNotEmpty
+                                      ? null
+                                      : "Please enter your name",
                         ),
 
                         _buildCupertinoFormField(
@@ -569,10 +521,11 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                           placeholder: "Email Address",
                           icon: CupertinoIcons.mail,
                           keyboardType: TextInputType.emailAddress,
-                          validator: (val) =>
-                              val != null && val.contains('@')
-                                  ? null
-                                  : 'Enter a valid email',
+                          validator:
+                              (val) =>
+                                  val != null && val.contains('@')
+                                      ? null
+                                      : 'Enter a valid email',
                         ),
 
                         _buildCupertinoFormField(
@@ -580,14 +533,16 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                           placeholder: "Password",
                           icon: CupertinoIcons.lock,
                           obscureText: _obscurePassword,
-                          validator: (val) =>
-                              val != null && val.length >= 6
-                                  ? null
-                                  : 'Password must be at least 6 characters',
+                          validator:
+                              (val) =>
+                                  val != null && val.length >= 6
+                                      ? null
+                                      : 'Password must be at least 6 characters',
                           suffix: GestureDetector(
-                            onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
+                            onTap:
+                                () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                             child: Icon(
                               _obscurePassword
                                   ? CupertinoIcons.eye
@@ -603,14 +558,16 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                           placeholder: "Confirm Password",
                           icon: CupertinoIcons.lock_shield,
                           obscureText: _obscureConfirm,
-                          validator: (val) =>
-                              val != null && val == _passwordController.text
-                                  ? null
-                                  : 'Passwords do not match',
+                          validator:
+                              (val) =>
+                                  val != null && val == _passwordController.text
+                                      ? null
+                                      : 'Passwords do not match',
                           suffix: GestureDetector(
-                            onTap: () => setState(
-                              () => _obscureConfirm = !_obscureConfirm,
-                            ),
+                            onTap:
+                                () => setState(
+                                  () => _obscureConfirm = !_obscureConfirm,
+                                ),
                             child: Icon(
                               _obscureConfirm
                                   ? CupertinoIcons.eye
@@ -628,31 +585,43 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                           keyboardType: TextInputType.phone,
                         ),
 
-                        _buildCupertinoFormField(
-                          controller: _classController,
-                          placeholder: "Classes Taught",
-                          icon: CupertinoIcons.book,
-                        ),
-                        
-                        _buildCupertinoFormField(
-                          controller: _subjectController,
-                          placeholder: "Subject",
-                          icon: CupertinoIcons.rectangle_stack_fill,
-                        ),
-
-                        _buildDropdownField(
+                        _buildAppleStyleDropdown(
                           label: "Department",
                           icon: CupertinoIcons.building_2_fill,
+                          selectedValue: _selectedDepartmentId,
                           items: _departments,
-                          value: _selectedDepartmentId,
+                          displayField: 'name',
+                          valueField: 'id',
                           onChanged: (value) {
-                            setState(() => _selectedDepartmentId = value);
+                            setState(() {
+                              _selectedDepartmentId = value;
+                              // Load classes when department is selected
+                              if (value != null) {
+                                _loadClasses(value);
+                              }
+                            });
                           },
-                          validator: (value) =>
-                              value == null
-                                  ? 'Please select a department'
-                                  : null,
+                          placeholder: 'Select a department',
                         ),
+
+                        _buildAppleStyleDropdown(
+                          label: "Class",
+                          icon: CupertinoIcons.book,
+                          selectedValue: _selectedClassId,
+                          items: _classes,
+                          displayField: 'name',
+                          valueField: 'id',
+                          onChanged:
+                              (value) =>
+                                  setState(() => _selectedClassId = value),
+                          placeholder: 'Select a class',
+                        ),
+
+                        // _buildCupertinoFormField(
+                        //   controller: _subjectController,
+                        //   placeholder: "Subject",
+                        //   icon: CupertinoIcons.rectangle_stack_fill,
+                        // ),
 
                         // Error message
                         if (_error != null)
@@ -666,7 +635,9 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                               color: CupertinoColors.systemRed.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: CupertinoColors.systemRed.withOpacity(0.3),
+                                color: CupertinoColors.systemRed.withOpacity(
+                                  0.3,
+                                ),
                               ),
                             ),
                             child: Row(
@@ -704,37 +675,41 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF5856D6).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFF5856D6,
+                                  ).withOpacity(0.3),
                                   blurRadius: 12,
                                   offset: const Offset(0, 6),
                                 ),
                               ],
                             ),
                             child: Center(
-                              child: _isLoading
-                                  ? const CustomLoader(
-                                      size: 28,
-                                      color: Colors.white,
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          CupertinoIcons.checkmark_circle,
-                                          color: Colors.white,
-                                          size: 18,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          "Register as Teacher",
-                                          style: TextStyle(
+                              child:
+                                  _isLoading
+                                      ? const CustomLoader(
+                                        size: 28,
+                                        color: Colors.white,
+                                      )
+                                      : const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            CupertinoIcons.checkmark_circle,
                                             color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
+                                            size: 18,
                                           ),
-                                        ),
-                                      ],
-                                    ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            "Register as Teacher",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                             ),
                           ),
                         ),
