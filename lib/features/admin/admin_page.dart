@@ -380,7 +380,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 12),
               Text(
-                'Dashboard refreshed successfully!',
+                'Dashboard refreshed success!',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
               ),
             ],

@@ -374,7 +374,7 @@ void _startStaggeredAnimations() {
               ),
               const SizedBox(width: 12),
               Text(
-                'Dashboard refreshed successfully!',
+                'Dashboard refreshed success!',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
               ),
             ],
@@ -1591,7 +1591,7 @@ void _startStaggeredAnimations() {
                                 childAspectRatio: aspectRatio,
                                 children: [
                                   _buildStatCard(
-                                    title: 'Assignments',
+                                    title: 'Assignmen',
                                     count: _assignmentsCount,
                                     icon: Icons.assignment_rounded,
                                     color: Colors.blue.shade600,

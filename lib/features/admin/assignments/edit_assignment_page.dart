@@ -89,17 +89,16 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
     try {
       final response = await Supabase.instance.client
           .from('teachers')
-          .select('id,full_name')
-          .eq(
-            'role_id',
-            '42ba7a8b-51ba-4ea4-87f9-d807a05af783',
-          ); // Teacher role ID
+          .select('id, full_name'); // Fetch all teachers
+
+      // print('Teachers Response: $response'); // Debugging: Log the response
 
       setState(() {
         _teachers = List<Map<String, dynamic>>.from(response);
       });
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = 'Failed to load teachers: $e');
+      // print('Error loading teachers: $e'); // Debugging: Log the error
     }
   }
 
@@ -200,124 +199,100 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
     );
   }
 
-  Widget _buildDropdownField({
+  Widget _buildAppleStyleDropdown({
     required String label,
     required IconData icon,
-    required String hintText,
     required String? selectedValue,
     required List<Map<String, dynamic>> items,
-    required String itemLabelKey,
+    required String displayField,
+    required String valueField,
     required Function(String?) onChanged,
+    required String placeholder,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+          filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(16),
+              color: CupertinoColors.systemBackground.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.white.withOpacity(0.5),
-                width: 1,
+                color: CupertinoColors.systemGrey5,
+                width: 0.5,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: CupertinoColors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: InkWell(
-              onTap: () {
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
                 showCupertinoModalPopup(
                   context: context,
                   builder:
-                      (BuildContext context) => Container(
-                        height: 300,
-                        padding: const EdgeInsets.only(bottom: 6),
-                        margin: EdgeInsets.only(
-                          bottom: MediaQuery.of(context).viewInsets.bottom,
-                        ),
-                        color: CupertinoColors.systemBackground.resolveFrom(
-                          context,
-                        ),
-                        child: SafeArea(
-                          top: false,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                height: 40,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: CupertinoColors.systemBackground
-                                      .resolveFrom(context),
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: CupertinoColors.systemGrey4
-                                          .resolveFrom(context),
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                ),
+                      (BuildContext context) => CupertinoActionSheet(
+                        title: Text('Select $label'),
+                        message: const Text('Tap an option to select it'),
+                        actions:
+                            items.map((item) {
+                              bool isSelected =
+                                  selectedValue == item[valueField];
+                              return CupertinoActionSheetAction(
+                                onPressed: () {
+                                  onChanged(item[valueField]);
+                                  Navigator.pop(context);
+                                },
                                 child: Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    CupertinoButton(
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Cancel'),
-                                    ),
                                     Text(
-                                      label,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                      item[displayField] ?? '',
+                                      style: TextStyle(
+                                        color:
+                                            isSelected
+                                                ? CupertinoColors.activeBlue
+                                                : CupertinoColors.label,
+                                        fontWeight:
+                                            isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.normal,
                                       ),
                                     ),
-                                    CupertinoButton(
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Done'),
-                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        CupertinoIcons.check_mark,
+                                        color: CupertinoColors.activeBlue,
+                                        size: 18,
+                                      ),
                                   ],
                                 ),
-                              ),
-                              Expanded(
-                                child: CupertinoPicker(
-                                  itemExtent: 32,
-                                  onSelectedItemChanged: (index) {
-                                    final item = items[index];
-                                    onChanged(item['id']);
-                                  },
-                                  children:
-                                      items.map((item) {
-                                        return Center(
-                                          child: Text(
-                                            item[itemLabelKey] ?? '',
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-                                ),
-                              ),
-                            ],
-                          ),
+                              );
+                            }).toList(),
+                        cancelButton: CupertinoActionSheetAction(
+                          isDefaultAction: true,
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
                         ),
                       ),
                 );
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 14,
                   vertical: 12,
                 ),
                 child: Row(
                   children: [
-                    Icon(icon, color: CupertinoColors.systemGrey),
-                    const SizedBox(width: 12),
+                    Icon(icon, color: CupertinoColors.secondaryLabel, size: 20),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,24 +302,27 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                             label,
                             style: const TextStyle(
                               fontSize: 14,
-                              color: CupertinoColors.systemGrey,
+                              fontWeight: FontWeight.w500,
+                              color: CupertinoColors.secondaryLabel,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             selectedValue != null
                                 ? items.firstWhere(
-                                      (item) => item['id'] == selectedValue,
-                                      orElse: () => {itemLabelKey: hintText},
-                                    )[itemLabelKey] ??
-                                    hintText
-                                : hintText,
+                                      (item) =>
+                                          item[valueField] == selectedValue,
+                                      orElse: () => {displayField: placeholder},
+                                    )[displayField] ??
+                                    placeholder
+                                : placeholder,
                             style: TextStyle(
                               fontSize: 16,
+                              fontWeight: FontWeight.w500,
                               color:
                                   selectedValue != null
                                       ? CupertinoColors.label
-                                      : CupertinoColors.systemGrey,
+                                      : CupertinoColors.tertiaryLabel,
                             ),
                           ),
                         ],
@@ -352,8 +330,8 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                     ),
                     const Icon(
                       CupertinoIcons.chevron_down,
-                      color: CupertinoColors.systemGrey,
-                      size: 20,
+                      color: CupertinoColors.tertiaryLabel,
+                      size: 14,
                     ),
                   ],
                 ),
@@ -477,7 +455,7 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color:const Color(0xFFFF2D55).withOpacity(0.2),
+                color: const Color(0xFFFF2D55).withOpacity(0.2),
               ),
             ),
           ),
@@ -577,28 +555,33 @@ class _EditAssignmentPageState extends State<EditAssignmentPage> {
                                 setState(() => _dueDate = date);
                               },
                             ),
-                            _buildDropdownField(
+                            _buildAppleStyleDropdown(
                               label: "Teacher",
                               icon: CupertinoIcons.person,
-                              hintText: "Select a teacher",
                               selectedValue: _selectedTeacherId,
                               items: _teachers,
-                              itemLabelKey: "name",
+                              displayField:
+                                  "full_name", // The field to display in the list
+                              valueField:
+                                  "id", // The field used as the actual value
+                              placeholder: "Select a teacher",
                               onChanged: (value) {
                                 setState(() => _selectedTeacherId = value);
                               },
                             ),
-                            _buildDropdownField(
+                            _buildAppleStyleDropdown(
                               label: "Class",
                               icon: CupertinoIcons.book,
-                              hintText: "Select a class",
                               selectedValue: _selectedClassName,
                               items: _classes,
-                              itemLabelKey: "name",
+                              displayField: "name", // The field to display
+                              valueField: "id", // The actual ID to store
+                              placeholder: "Select a class",
                               onChanged: (value) {
                                 setState(() => _selectedClassName = value);
                               },
                             ),
+
                             if (_error != null)
                               Container(
                                 margin: const EdgeInsets.only(bottom: 16),

@@ -23,13 +23,11 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
 
-    // Email empty validation
     if (email.isEmpty) {
       setState(() => _errorMessage = 'Please enter your email address');
       return;
     }
 
-    // Email format validation
     final emailRegex = RegExp(r'^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$');
     if (!emailRegex.hasMatch(email)) {
       setState(() => _errorMessage = 'Please enter a valid email address');
@@ -52,18 +50,22 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     );
 
     try {
-      // Check if email exists in database
-      final response =
-          await Supabase.instance.client
-              .from('profiles')
-              .select()
-              .eq('email', email)
-              .maybeSingle();
+      final client = Supabase.instance.client;
+      final tables = ['students', 'teachers', 'admins'];
+      bool emailExists = false;
 
-      if (response == null) {
-        // Email not found in database
+      for (final table in tables) {
+        final response =
+            await client.from(table).select().eq('email', email).maybeSingle();
+        if (response != null) {
+          emailExists = true;
+          break;
+        }
+      }
+
+      if (!emailExists) {
         if (mounted) {
-          Navigator.of(context).pop(); // Dismiss loader
+          Navigator.of(context).pop();
           showCupertinoDialog(
             context: context,
             builder:
@@ -90,17 +92,16 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
           );
         }
       } else {
-        // Email exists, proceed with password reset
-        await Supabase.instance.client.auth.resetPasswordForEmail(email);
+        await client.auth.resetPasswordForEmail(email);
 
         if (mounted) {
-          Navigator.of(context).pop(); // Dismiss loader
+          Navigator.of(context).pop();
           setState(() {
             _successMessage =
                 'Password reset instructions have been sent to your email';
             _canResendEmail = false;
           });
-          // Start cooldown timer
+
           Future.delayed(const Duration(seconds: 10), () {
             if (mounted) {
               setState(() => _canResendEmail = true);
@@ -111,15 +112,14 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
+        print('Password reset error: $e');
         setState(() {
           _errorMessage = 'An error occurred. Please try again later.';
         });
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }

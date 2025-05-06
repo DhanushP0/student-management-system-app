@@ -528,7 +528,7 @@ class _AssignmentsListPageState extends State<AssignmentsListPage> {
                           ),
                           const SizedBox(width: 16),
                           const Text(
-                            "Assignments",
+                            "Assignment",
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
