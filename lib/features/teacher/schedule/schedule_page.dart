@@ -386,160 +386,183 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: CupertinoColors.systemBackground,
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFF2F6FF), Color(0xFFF9F9F9)],
-              ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: CupertinoColors.systemBackground,
+    body: Stack(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFF2F6FF), Color(0xFFF9F9F9)],
             ),
           ),
-          Positioned(
-            top: -120,
-            right: -80,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF00C7BE).withOpacity(0.2),
-              ),
+        ),
+        Positioned(
+          top: -120,
+          right: -80,
+          child: Container(
+            width: 250,
+            height: 250,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: CupertinoColors.systemBlue.withOpacity(0.1),
             ),
           ),
-          Positioned(
-            bottom: -80,
-            left: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF00C7BE).withOpacity(0.08),
-              ),
+        ),
+        Positioned(
+          bottom: -80,
+          left: -50,
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: CupertinoColors.systemIndigo.withOpacity(0.08),
             ),
           ),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "My Schedule",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E1E1E),
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: _loadSchedules,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.refresh,
-                            color: Color(0xFF00C7BE),
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_showSearch) _buildSearchBar(),
-                if (_isLoading)
-                  const Expanded(child: Center(child: CustomLoader()))
-                else if (_error != null)
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.exclamationmark_circle,
-                            color: CupertinoColors.systemRed,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _error!,
-                            style: const TextStyle(
-                              color: CupertinoColors.systemRed,
-                              fontSize: 16,
+        ),
+        SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => context.go('/teacher'),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          CupertinoButton(
-                            onPressed: _loadSchedules,
-                            child: const Text('Retry'),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.back,
+                          color: CupertinoColors.systemBlue,
+                          size: 20,
+                        ),
                       ),
                     ),
-                  )
-                else
-                  Expanded(
-                    child:
-                        _filteredSchedules.isEmpty
-                            ? const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    CupertinoIcons.calendar,
-                                    color: Color(0xFF8E8E93),
-                                    size: 48,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'No schedules found',
-                                    style: TextStyle(
-                                      color: Color(0xFF8E8E93),
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                            : ListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              itemCount: _filteredSchedules.length,
-                              itemBuilder:
-                                  (context, index) => _buildScheduleCard(
-                                    _filteredSchedules[index],
-                                  ),
+                    const Text(
+                      "My Schedule",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E1E1E),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _loadSchedules,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
+                          ],
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.refresh,
+                          color: Color(0xFF00C7BE),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_showSearch) _buildSearchBar(),
+              if (_isLoading)
+                const Expanded(child: Center(child: CustomLoader()))
+              else if (_error != null)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.exclamationmark_circle,
+                          color: CupertinoColors.systemRed,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _error!,
+                          style: const TextStyle(
+                            color: CupertinoColors.systemRed,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        CupertinoButton(
+                          onPressed: _loadSchedules,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
-              ],
-            ),
+                )
+              else
+                Expanded(
+                  child:
+                      _filteredSchedules.isEmpty
+                          ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.calendar,
+                                  color: Color(0xFF8E8E93),
+                                  size: 48,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No schedules found',
+                                  style: TextStyle(
+                                    color: Color(0xFF8E8E93),
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                          : ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                            ),
+                            itemCount: _filteredSchedules.length,
+                            itemBuilder:
+                                (context, index) => _buildScheduleCard(
+                                  _filteredSchedules[index],
+                                ),
+                          ),
+                ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 }

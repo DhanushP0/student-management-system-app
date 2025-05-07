@@ -410,7 +410,7 @@ class _TeacherPageState extends State<TeacherPage>
               ),
               const SizedBox(width: 12),
               Text(
-                'Dashboard refreshed successfully!',
+                'Dashboard refreshed success!',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
               ),
             ],
@@ -1658,14 +1658,14 @@ class _TeacherPageState extends State<TeacherPage>
                                     index: 1,
                                   ),
                                   _buildStatCard(
-                                    title: 'Assignments',
+                                    title: 'Assignmen',
                                     count: _assignmentCount,
                                     icon: Icons.assignment_rounded,
                                     color: assignmentColor,
                                     index: 2,
                                   ),
                                   _buildStatCard(
-                                    title: 'Pending Attendance',
+                                    title: 'Attendance',
                                     count: _pendingAttendanceCount,
                                     icon: Icons.pending_actions_rounded,
                                     color: attendanceColor,
