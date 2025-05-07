@@ -84,15 +84,22 @@ class _GiveGradePageState extends State<GiveGradePage> {
   }
 
   Future<void> saveGrade() async {
+    final parsedGrade = double.tryParse(_gradeController.text.trim());
     if (selectedSubjectId == null ||
         selectedTeacherId == null ||
-        grade == null) {
+        parsedGrade == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields.')),
       );
       return;
     }
-    setState(() => isSaving = true);
+
+    setState(() {
+      grade = parsedGrade;
+      remarks = _remarksController.text.trim();
+      isSaving = true;
+    });
+
     try {
       await supabase.from('grades').insert({
         'student_id': widget.studentId,
@@ -101,17 +108,15 @@ class _GiveGradePageState extends State<GiveGradePage> {
         'grade': grade,
         'remarks': remarks,
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Grade saved successfully!')),
       );
-      setState(() {
-        selectedSubjectId = null;
-        selectedTeacherId = null;
-        grade = null;
-        remarks = null;
-        _gradeController.clear();
-        _remarksController.clear();
-      });
+
+      // Return to the previous page with a success result
+      if (mounted) {
+        Navigator.pop(context, true); // Pass `true` as the result
+      }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
