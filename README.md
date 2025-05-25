@@ -19,7 +19,7 @@ A Flutter-based student management application that helps track and manage stude
 
 1. Clone the repository
 ```bash
-git clone [your-repository-url]
+git clone https://github.com/DhanushP0/student-management-system-app.git
 cd student_management_app
 ```
 
